@@ -1,15 +1,95 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+
+/* Custom theme variables for Tailwind v4 */
+@theme {
+  /* Custom color palette that extends default colors */
+  --color-primary-50: #eff6ff;
+  --color-primary-100: #dbeafe;
+  --color-primary-200: #bfdbfe;
+  --color-primary-300: #93c5fd;
+  --color-primary-400: #60a5fa;
+  --color-primary-500: #3b82f6;
+  --color-primary-600: #2563eb;
+  --color-primary-700: #1d4ed8;
+  --color-primary-800: #1e40af;
+  --color-primary-900: #1e3a8a;
+  
+  --color-secondary-50: #f8fafc;
+  --color-secondary-100: #f1f5f9;
+  --color-secondary-200: #e2e8f0;
+  --color-secondary-300: #cbd5e1;
+  --color-secondary-400: #94a3b8;
+  --color-secondary-500: #64748b;
+  --color-secondary-600: #475569;
+  --color-secondary-700: #334155;
+  --color-secondary-800: #1e293b;
+  --color-secondary-900: #0f172a;
+  
+  --color-success-50: #ecfdf5;
+  --color-success-100: #d1fae5;
+  --color-success-200: #a7f3d0;
+  --color-success-300: #6ee7b7;
+  --color-success-400: #34d399;
+  --color-success-500: #10b981;
+  --color-success-600: #059669;
+  --color-success-700: #047857;
+  --color-success-800: #065f46;
+  --color-success-900: #064e3b;
+  
+  --color-warning-50: #fffbeb;
+  --color-warning-100: #fef3c7;
+  --color-warning-200: #fde68a;
+  --color-warning-300: #fcd34d;
+  --color-warning-400: #fbbf24;
+  --color-warning-500: #f59e0b;
+  --color-warning-600: #d97706;
+  --color-warning-700: #b45309;
+  --color-warning-800: #92400e;
+  --color-warning-900: #78350f;
+  
+  --color-error-50: #fef2f2;
+  --color-error-100: #fee2e2;
+  --color-error-200: #fecaca;
+  --color-error-300: #fca5a5;
+  --color-error-400: #f87171;
+  --color-error-500: #ef4444;
+  --color-error-600: #dc2626;
+  --color-error-700: #b91c1c;
+  --color-error-800: #991b1b;
+  --color-error-900: #7f1d1d;
+  
+  /* Custom fonts */
+  --font-sans: Inter, ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+  
+  /* Custom spacing */
+  --spacing-18: 4.5rem;
+  --spacing-88: 22rem;
+  
+  /* Custom max widths */
+  --container-content: 1400px;
+  
+  /* Custom shadows */
+  --shadow-custom-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-custom-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  --shadow-custom-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -2px rgb(0 0 0 / 0.1);
+  --shadow-custom-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 10px 10px -5px rgb(0 0 0 / 0.04);
+  
+  /* Custom animations */
+  --animate-fadeIn: fadeIn 0.2s ease-in-out;
+  
+  @keyframes fadeIn {
+    0% { opacity: 0; transform: translateY(-4px); }
+    100% { opacity: 1; transform: translateY(0); }
+  }
+}
 
 /* You can add global styles to this file, and also import other style files */
 
 /* Custom base styles */
 @layer base {
   body {
-    font-family: theme('fontFamily.sans');
-    background-color: theme('colors.background');
-    color: theme('colors.text.primary');
+    font-family: var(--font-sans);
+    @apply bg-slate-50 text-slate-800;
     line-height: 1.6;
     font-size: 14px;
   }
@@ -29,43 +109,45 @@
   
   /* Button variants that match the design system */
   .btn-primary {
-    @apply bg-primary text-white border-primary hover:bg-primary-700 focus:ring-primary/20;
+    @apply bg-primary-600 text-white border-primary-600 hover:bg-primary-700 focus:ring-primary-500/20;
   }
   
   .btn-secondary {
-    @apply bg-secondary text-white border-secondary hover:bg-secondary-600 focus:ring-secondary/20;
+    @apply bg-secondary-500 text-white border-secondary-500 hover:bg-secondary-600 focus:ring-secondary-500/20;
   }
   
   .btn-success {
-    @apply bg-success text-white border-success hover:bg-success-600 focus:ring-success/20;
+    @apply bg-success-500 text-white border-success-500 hover:bg-success-600 focus:ring-success-500/20;
   }
   
   .btn-warning {
-    @apply bg-warning text-white border-warning hover:bg-warning-600 focus:ring-warning/20;
+    @apply bg-warning-500 text-white border-warning-500 hover:bg-warning-600 focus:ring-warning-500/20;
   }
   
   .btn-error {
-    @apply bg-error text-white border-error hover:bg-error-600 focus:ring-error/20;
+    @apply bg-error-500 text-white border-error-500 hover:bg-error-600 focus:ring-error-500/20;
   }
   
   /* Form input styles */
   .form-input {
-    @apply w-full px-3 py-2 border border-border rounded-md bg-surface text-text-primary;
-    @apply focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary;
+    @apply w-full px-3 py-2 border border-slate-200 rounded-md bg-white text-slate-900;
+    @apply focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-600;
     @apply transition-colors duration-200;
   }
   
   .form-select {
-    @apply form-input cursor-pointer;
+    @apply w-full px-3 py-2 border border-slate-200 rounded-md bg-white text-slate-900;
+    @apply focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-600;
+    @apply transition-colors duration-200 cursor-pointer;
   }
   
   .form-label {
-    @apply block text-sm font-medium text-text-primary mb-1;
+    @apply block text-sm font-medium text-slate-900 mb-1;
   }
   
   /* Card component */
   .card {
-    @apply bg-surface border border-border rounded-md shadow-sm;
+    @apply bg-white border border-slate-200 rounded-md shadow-sm;
   }
   
   /* Status badge base styles */
@@ -75,7 +157,8 @@
   
   /* Container for main content areas */
   .container-content {
-    @apply max-w-content mx-auto px-8;
+    max-width: var(--container-content);
+    @apply mx-auto px-8;
   }
 }
 
@@ -104,6 +187,6 @@
   
   /* Focus ring with primary color */
   .focus-ring {
-    @apply focus:outline-none focus:ring-2 focus:ring-primary/20 focus:ring-offset-2;
+    @apply focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:ring-offset-2;
   }
 }
