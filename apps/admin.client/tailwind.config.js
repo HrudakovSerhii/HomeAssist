@@ -149,6 +149,19 @@ module.exports = {
       spacing: {
         '18': '4.5rem',   // 72px
         '88': '22rem',    // 352px
+      },
+      
+      // Animations
+      animation: {
+        'fadeIn': 'fadeIn 0.2s ease-in-out',
+      },
+      
+      // Keyframes
+      keyframes: {
+        fadeIn: {
+          '0%': { opacity: '0', transform: 'translateY(-4px)' },
+          '100%': { opacity: '1', transform: 'translateY(0)' },
+        },
       }
     },
   },
