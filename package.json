@@ -6,10 +6,13 @@
     "frontend:dev": "npx nx serve admin.client",
     "frontend:build": "npx nx build admin.client",
     "frontend:test": "npx nx test admin.client",
-    "backend:dev": "npx nx serve backend.root",
-    "backend:build": "npx nx build backend.root",
-    "backend:build:prod": "npx nx build backend.root --configuration=production",
-    "backend:test": "npx nx test backend.root"
+    "backend:dev": "npx dotenv -e .env.development -- npx nx serve backend.root",
+    "backend:build": "npx dotenv -e .env.test -- npx nx build backend.root",
+    "backend:build:prod": "npx dotenv -e .env.production -- npx nx build backend.root --configuration=production",
+    "backend:test": "npx dotenv -e .env.development -- npx nx test backend.root",
+    "db:migrate": "cd apps/backend.root && npx dotenv -e ../../.env.development -- npx prisma migrate dev",
+    "db:generate": "cd apps/backend.root && npx dotenv -e ../../.env.development -- npx prisma generate",
+    "db:studio": "cd apps/backend.root && npx dotenv -e ../../.env.development -- npx prisma studio"
   },
   "private": true,
   "devDependencies": {
@@ -44,6 +47,7 @@
     "@vitest/ui": "^3.0.0",
     "autoprefixer": "^10.4.21",
     "babel-jest": "^29.7.0",
+    "dotenv-cli": "^8.0.0",
     "eslint": "^9.8.0",
     "eslint-config-prettier": "^10.0.0",
     "eslint-plugin-import": "2.31.0",
