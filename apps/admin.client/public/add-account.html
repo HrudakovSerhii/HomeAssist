@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SerhiiHomeAI - Add Email Account</title>
+    <link rel="stylesheet" href="/css/data-preview.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        .add-account-container {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 2rem;
+        }
+        
+        .add-account-card {
+            background: white;
+            border-radius: 16px;
+            padding: 3rem;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            max-width: 600px;
+            width: 100%;
+            text-align: center;
+        }
+        
+        .add-account-logo {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+        }
+        
+        .add-account-title {
+            color: #2d3748;
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+        
+        .add-account-subtitle {
+            color: #718096;
+            margin-bottom: 2rem;
+            font-size: 1.1rem;
+        }
+        
+        .user-info {
+            background: #f7fafc;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 2rem;
+            text-align: left;
+        }
+        
+        .user-info h3 {
+            margin: 0 0 0.5rem 0;
+            color: #2d3748;
+            font-size: 1.1rem;
+        }
+        
+        .user-info p {
+            margin: 0;
+            color: #718096;
+            font-size: 0.9rem;
+        }
+        
+        .add-account-form {
+            text-align: left;
+            margin-bottom: 2rem;
+        }
+        
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+        
+        .form-label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            color: #2d3748;
+        }
+        
+        .form-input {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: border-color 0.2s;
+            box-sizing: border-box;
+        }
+        
+        .form-input:focus {
+            outline: none;
+            border-color: #4285f4;
+        }
+        
+        .form-select {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 1rem;
+            background: white;
+            cursor: pointer;
+            transition: border-color 0.2s;
+            box-sizing: border-box;
+        }
+        
+        .form-select:focus {
+            outline: none;
+            border-color: #4285f4;
+        }
+        
+        .submit-button {
+            width: 100%;
+            padding: 0.875rem 1rem;
+            background: #4285f4;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            margin-bottom: 1rem;
+        }
+        
+        .submit-button:hover:not(:disabled) {
+            background: #3367d6;
+        }
+        
+        .submit-button:disabled {
+            background: #a0aec0;
+            cursor: not-allowed;
+        }
+        
+        .loading-text {
+            color: #718096;
+            font-size: 0.9rem;
+        }
+        
+        .error-message {
+            background: #fed7d7;
+            color: #c53030;
+            padding: 0.75rem 1rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            font-size: 0.9rem;
+            display: none;
+        }
+        
+        .success-message {
+            background: #c6f6d5;
+            color: #2f855a;
+            padding: 0.75rem 1rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            font-size: 0.9rem;
+            display: none;
+        }
+        
+        .info-box {
+            background: #ebf8ff;
+            color: #2c5282;
+            padding: 1rem;
+            border-radius: 8px;
+            margin-top: 1rem;
+            font-size: 0.9rem;
+            text-align: left;
+        }
+        
+        .info-box h4 {
+            margin: 0 0 0.5rem 0;
+            font-weight: 600;
+        }
+        
+        .info-box ol {
+            margin: 0.5rem 0 0 1rem;
+            padding: 0;
+        }
+        
+        .navigation-links {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+        }
+        
+        .navigation-link {
+            color: #4285f4;
+            text-decoration: none;
+            font-weight: 500;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            border: 2px solid #e2e8f0;
+            transition: all 0.2s;
+        }
+        
+        .navigation-link:hover {
+            background: #f7fafc;
+            border-color: #4285f4;
+        }
+        
+        .hidden {
+            display: none !important;
+        }
+        
+        .back-button {
+            position: absolute;
+            top: 2rem;
+            left: 2rem;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: none;
+            padding: 0.75rem 1rem;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        
+        .back-button:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+    </style>
+</head>
+<body>
+    <button class="back-button" onclick="window.history.back()">← Back</button>
+    
+    <div class="add-account-container">
+        <div class="add-account-card">
+            <div class="add-account-logo">📧</div>
+            <h1 class="add-account-title">Add Email Account</h1>
+            <p class="add-account-subtitle">Connect your email account to start processing emails</p>
+            
+            <!-- User Info -->
+            <div class="user-info" id="user-info">
+                <h3 id="user-display-name">Loading...</h3>
+                <p id="user-email-count">Checking email accounts...</p>
+            </div>
+            
+            <!-- Error/Success Messages -->
+            <div id="error-message" class="error-message"></div>
+            <div id="success-message" class="success-message"></div>
+            
+            <!-- Add Email Account Form -->
+            <form id="add-account-form" class="add-account-form">
+                <div class="form-group">
+                    <label for="account-email" class="form-label">Gmail Address</label>
+                    <input 
+                        type="email" 
+                        id="account-email" 
+                        name="email" 
+                        required 
+                        class="form-input"
+                        placeholder="your.email@gmail.com"
+                    >
+                </div>
+                
+                <div class="form-group">
+                    <label for="account-password" class="form-label">App Password</label>
+                    <input 
+                        type="password" 
+                        id="account-password" 
+                        name="appPassword" 
+                        required 
+                        class="form-input"
+                        placeholder="Gmail app password (16 characters)"
+                    >
+                </div>
+                
+                <div class="form-group">
+                    <label for="account-display-name" class="form-label">Account Name (Optional)</label>
+                    <input 
+                        type="text" 
+                        id="account-display-name" 
+                        name="displayName" 
+                        class="form-input"
+                        placeholder="Work Gmail, Personal Gmail, etc."
+                    >
+                </div>
+                
+                <div class="form-group">
+                    <label for="account-type" class="form-label">Account Type</label>
+                    <select id="account-type" name="accountType" class="form-select">
+                        <option value="GMAIL">Gmail</option>
+                        <option value="OUTLOOK">Outlook</option>
+                        <option value="YAHOO">Yahoo</option>
+                        <option value="IMAP_GENERIC">Other IMAP</option>
+                    </select>
+                </div>
+                
+                <button type="submit" id="add-account-button" class="submit-button">
+                    <span id="add-account-text">Add Email Account</span>
+                    <span id="add-account-loading" class="loading-text hidden">Adding account...</span>
+                </button>
+                
+                <div class="info-box">
+                    <h4>How to get Gmail App Password:</h4>
+                    <ol>
+                        <li>Go to your Google Account settings</li>
+                        <li>Enable 2-Step Verification if not already enabled</li>
+                        <li>Go to Security → App passwords</li>
+                        <li>Select "Mail" and generate password</li>
+                        <li>Use the 16-character password here</li>
+                    </ol>
+                </div>
+            </form>
+            
+            <!-- Navigation -->
+            <div class="navigation-links">
+                <a href="/data-preview.html" class="navigation-link">← Dashboard</a>
+                <a href="/login.html" class="navigation-link">Logout</a>
+            </div>
+        </div>
+    </div>
+    
+    <script src="/js/add-account.js"></script>
+</body>
+</html> 

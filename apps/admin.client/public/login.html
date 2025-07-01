@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SerhiiHomeAI - Login</title>
+    <link rel="stylesheet" href="/css/data-preview.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        .login-container {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 2rem;
+        }
+        
+        .login-card {
+            background: white;
+            border-radius: 16px;
+            padding: 3rem;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            max-width: 500px;
+            width: 100%;
+            text-align: center;
+        }
+        
+        .login-logo {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+        }
+        
+        .login-title {
+            color: #2d3748;
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+        
+        .login-subtitle {
+            color: #718096;
+            margin-bottom: 2rem;
+            font-size: 1.1rem;
+        }
+        
+        .auth-tabs {
+            display: flex;
+            margin-bottom: 2rem;
+            border-radius: 8px;
+            background: #f7fafc;
+            padding: 4px;
+        }
+        
+        .auth-tab {
+            flex: 1;
+            padding: 0.75rem 1rem;
+            background: transparent;
+            border: none;
+            border-radius: 6px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            color: #718096;
+        }
+        
+        .auth-tab.active {
+            background: white;
+            color: #2d3748;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        
+        .auth-form {
+            text-align: left;
+            margin-bottom: 2rem;
+        }
+        
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+        
+        .form-label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            color: #2d3748;
+        }
+        
+        .form-input {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: border-color 0.2s;
+            box-sizing: border-box;
+        }
+        
+        .form-input:focus {
+            outline: none;
+            border-color: #4285f4;
+        }
+        
+        .form-select {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 1rem;
+            background: white;
+            cursor: pointer;
+            transition: border-color 0.2s;
+            box-sizing: border-box;
+        }
+        
+        .form-select:focus {
+            outline: none;
+            border-color: #4285f4;
+        }
+        
+        .submit-button {
+            width: 100%;
+            padding: 0.875rem 1rem;
+            background: #4285f4;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            margin-bottom: 1rem;
+        }
+        
+        .submit-button:hover:not(:disabled) {
+            background: #3367d6;
+        }
+        
+        .submit-button:disabled {
+            background: #a0aec0;
+            cursor: not-allowed;
+        }
+        
+        .loading-text {
+            color: #718096;
+            font-size: 0.9rem;
+        }
+        
+        .error-message {
+            background: #fed7d7;
+            color: #c53030;
+            padding: 0.75rem 1rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            font-size: 0.9rem;
+            display: none;
+        }
+        
+        .success-message {
+            background: #c6f6d5;
+            color: #2f855a;
+            padding: 0.75rem 1rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            font-size: 0.9rem;
+            display: none;
+        }
+        
+        .info-box {
+            background: #ebf8ff;
+            color: #2c5282;
+            padding: 1rem;
+            border-radius: 8px;
+            margin-top: 1rem;
+            font-size: 0.9rem;
+            text-align: left;
+        }
+        
+        .info-box h4 {
+            margin: 0 0 0.5rem 0;
+            font-weight: 600;
+        }
+        
+        .info-box ol {
+            margin: 0.5rem 0 0 1rem;
+            padding: 0;
+        }
+        
+        .navigation-link {
+            color: #4285f4;
+            text-decoration: none;
+            font-weight: 500;
+            margin-top: 1rem;
+            display: inline-block;
+        }
+        
+        .navigation-link:hover {
+            text-decoration: underline;
+        }
+        
+        .hidden {
+            display: none !important;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <div class="login-card">
+            <div class="login-logo">🏠</div>
+            <h1 class="login-title">SerhiiHomeAI</h1>
+            <p class="login-subtitle">Simple email processing with IMAP authentication</p>
+            
+            <!-- Auth Tabs -->
+            <div class="auth-tabs">
+                <button id="login-tab" class="auth-tab active">Login</button>
+                <button id="register-tab" class="auth-tab">Register</button>
+            </div>
+            
+            <!-- Error/Success Messages -->
+            <div id="error-message" class="error-message"></div>
+            <div id="success-message" class="success-message"></div>
+            
+            <!-- Login Form -->
+            <form id="login-form" class="auth-form">
+                <div class="form-group">
+                    <label for="login-username" class="form-label">Username</label>
+                    <input 
+                        type="text" 
+                        id="login-username" 
+                        name="username" 
+                        required 
+                        class="form-input"
+                        placeholder="Enter your username"
+                    >
+                </div>
+                
+                <div class="form-group">
+                    <label for="login-password" class="form-label">Password</label>
+                    <input 
+                        type="password" 
+                        id="login-password" 
+                        name="password" 
+                        required 
+                        class="form-input"
+                        placeholder="Enter your password"
+                    >
+                </div>
+                
+                <button type="submit" id="login-button" class="submit-button">
+                    <span id="login-text">Sign In</span>
+                    <span id="login-loading" class="loading-text hidden">Signing in...</span>
+                </button>
+            </form>
+            
+            <!-- Register Form -->
+            <form id="register-form" class="auth-form hidden">
+                <div class="form-group">
+                    <label for="register-username" class="form-label">Username</label>
+                    <input 
+                        type="text" 
+                        id="register-username" 
+                        name="username" 
+                        required 
+                        class="form-input"
+                        placeholder="Choose a username"
+                    >
+                </div>
+                
+                <div class="form-group">
+                    <label for="register-password" class="form-label">Password</label>
+                    <input 
+                        type="password" 
+                        id="register-password" 
+                        name="password" 
+                        required 
+                        minlength="6"
+                        class="form-input"
+                        placeholder="Choose a password (min 6 characters)"
+                    >
+                </div>
+                
+                <div class="form-group">
+                    <label for="register-display-name" class="form-label">Display Name</label>
+                    <input 
+                        type="text" 
+                        id="register-display-name" 
+                        name="displayName" 
+                        required 
+                        class="form-input"
+                        placeholder="Your display name"
+                    >
+                </div>
+                
+                <div class="form-group">
+                    <label for="register-email" class="form-label">Email (Optional)</label>
+                    <input 
+                        type="email" 
+                        id="register-email" 
+                        name="email" 
+                        class="form-input"
+                        placeholder="your@email.com"
+                    >
+                </div>
+                
+                <button type="submit" id="register-button" class="submit-button">
+                    <span id="register-text">Create Account</span>
+                    <span id="register-loading" class="loading-text hidden">Creating account...</span>
+                </button>
+            </form>
+            
+
+            
+            <!-- Navigation -->
+            <div id="navigation">
+                <a href="/data-preview.html" class="navigation-link hidden" id="dashboard-link">
+                    Go to Dashboard →
+                </a>
+            </div>
+        </div>
+    </div>
+    
+    <script src="/js/login.js"></script>
+</body>
+</html> 
