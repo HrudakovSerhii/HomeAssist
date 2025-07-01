@@ -1,4 +1,4 @@
-import { VALIDATION } from '../../../constants';
+import { VALIDATION, ACCOUNT_TYPES } from '../../../constants';
 
 // Validation utility functions
 export const validation = {
@@ -130,25 +130,20 @@ export const validationSchemas = {
     },
 
     displayName: (value: string) => {
-      if (!validation.isRequired(value)) {
-        return VALIDATION.required;
-      }
-      if (!validation.isValidDisplayName(value)) {
+      // displayName is optional, so only validate if provided
+      if (value && !validation.isValidDisplayName(value)) {
         return 'Display name must be 2-50 characters and contain only letters, spaces, hyphens, and apostrophes';
       }
       return '';
     },
 
-    imapHost: (value: string) => {
-      if (value && !validation.isValidHost(value)) {
-        return 'Please enter a valid IMAP host (e.g., imap.gmail.com)';
+    accountType: (value: string) => {
+      const validTypes = Object.values(ACCOUNT_TYPES) as string[];
+      if (!validation.isRequired(value)) {
+        return 'Account type is required';
       }
-      return '';
-    },
-
-    imapPort: (value: string) => {
-      if (value && !validation.isValidPort(value)) {
-        return 'Please enter a valid port number (1-65535)';
+      if (!validTypes.includes(value)) {
+        return 'Please select a valid account type';
       }
       return '';
     }
@@ -179,4 +174,6 @@ export function hasFormErrors<T extends Record<string, any>>(
   errors: Record<keyof T, string>
 ): boolean {
   return Object.values(errors).some(error => error !== '');
-} 
+}
+
+ 

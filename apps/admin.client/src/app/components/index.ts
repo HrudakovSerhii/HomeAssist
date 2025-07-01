@@ -10,6 +10,7 @@ export { Card } from './ui/Card';
 export { StatusBadge } from './ui/StatusBadge';
 export { LoadingSpinner } from './ui/LoadingSpinner';
 export { AlertMessage } from './ui/AlertMessage';
+export { PageLoader } from './ui/PageLoader';
 
 // Layout Components
 export { PageContainer } from './layout/PageContainer';
@@ -21,6 +22,14 @@ export { DataTable } from './data/DataTable';
 export { ExpandableRow } from './data/ExpandableRow';
 export { Pagination } from './data/Pagination';
 export { FilterForm } from './data/FilterForm';
+
+// Auth Components
+export { AuthTabs } from './auth/AuthTabs';
+export { LoginForm } from './auth/LoginForm';
+export { RegisterForm } from './auth/RegisterForm';
+
+// Route Components
+export { ProtectedRoute } from './ProtectedRoute';
 
 // Types
 export type { User, EmailAccount, DataItem, FilterOptions, PaginationInfo, TableColumn, ApiResponse } from '../types'; 

@@ -29,7 +29,22 @@ export const PAGE_SIZE_OPTIONS = [10, 25, 50, 100] as const;
 
 // Application Constants
 export const APP_NAME = 'HomeAI Assist';
-export const COPYRIGHT_TEXT = '© 2024 HomeAIAssist. All rights reserved.';
+export const COPYRIGHT_TEXT = '© 2025 HomeAIAssist. All rights reserved.';
+
+// Account Type Constants
+export const ACCOUNT_TYPES = {
+  GMAIL: 'GMAIL',
+  OUTLOOK: 'OUTLOOK',
+  YAHOO: 'YAHOO',
+  IMAP_GENERIC: 'IMAP_GENERIC'
+} as const;
+
+export const ACCOUNT_TYPE_OPTIONS = [
+  { value: ACCOUNT_TYPES.GMAIL, label: 'Gmail' },
+  { value: ACCOUNT_TYPES.OUTLOOK, label: 'Outlook' },
+  { value: ACCOUNT_TYPES.YAHOO, label: 'Yahoo' },
+  { value: ACCOUNT_TYPES.IMAP_GENERIC, label: 'Other IMAP' }
+] as const;
 
 // API Endpoints (to be used later)
 export const API_ENDPOINTS = {
@@ -64,4 +79,4 @@ export const VALIDATION = {
     pattern: 'Password must contain at least one uppercase letter, one lowercase letter, and one number',
   },
   required: 'This field is required',
-} as const; 
+} as const;

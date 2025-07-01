@@ -1,4 +1,4 @@
-import { ApiError } from '../../types/api';
+import { ApiError } from '../types/api';
 
 class ApiClient {
   private baseURL = '/api';
