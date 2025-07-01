@@ -42,9 +42,4 @@ export interface TableColumn {
   width?: string;
 }
 
-export interface ApiResponse<T> {
-  success: boolean;
-  data?: T;
-  error?: string;
-  message?: string;
-} 
+ 
