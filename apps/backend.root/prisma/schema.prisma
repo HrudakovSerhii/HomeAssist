@@ -1,0 +1,307 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id             String   @id @default(uuid())
+  username       String   @unique // Simple username for login
+  email          String?  @unique // Optional primary email
+  password       String // Hashed password
+  displayName    String
+  profilePicture String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  lastLoginAt    DateTime @default(now())
+  isActive       Boolean  @default(true)
+
+  // Relations
+  sessions Session[]
+  accounts EmailAccount[]
+
+  @@map("users")
+}
+
+model Session {
+  id        String   @id @default(uuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  ipAddress String
+  userAgent String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("sessions")
+}
+
+// Email Processing Models
+model Email {
+  id               String           @id @default(uuid())
+  messageId        String           @unique // Gmail message ID
+  emailAccountId   String // Link to email account
+  subject          String
+  fromAddress      String
+  toAddresses      String[]
+  ccAddresses      String[]         @default([])
+  bccAddresses     String[]         @default([])
+  receivedAt       DateTime
+  bodyText         String?
+  bodyHtml         String?
+  isProcessed      Boolean          @default(false)
+  processingStatus ProcessingStatus @default(PENDING)
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  // Relations
+  emailAccount  EmailAccount         @relation(fields: [emailAccountId], references: [id], onDelete: Cascade)
+  attachments   EmailAttachment[]
+  llmResponses  LLMResponse[]
+  extractedData ExtractedEmailData[]
+
+  @@index([messageId])
+  @@index([emailAccountId])
+  @@index([isProcessed])
+  @@index([processingStatus])
+  @@index([receivedAt])
+  @@map("emails")
+}
+
+model EmailAttachment {
+  id          String   @id @default(uuid())
+  emailId     String
+  filename    String
+  contentType String
+  size        Int
+  filePath    String?
+  createdAt   DateTime @default(now())
+
+  email Email @relation(fields: [emailId], references: [id], onDelete: Cascade)
+
+  @@index([emailId])
+  @@map("email_attachments")
+}
+
+model LLMResponse {
+  id               String   @id @default(uuid())
+  emailId          String
+  promptTemplate   String
+  rawResponse      String
+  processedAt      DateTime @default(now())
+  modelUsed        String
+  tokensUsed       Int?
+  processingTimeMs Int
+  createdAt        DateTime @default(now())
+
+  email         Email                @relation(fields: [emailId], references: [id], onDelete: Cascade)
+  extractedData ExtractedEmailData[]
+
+  @@index([emailId])
+  @@map("llm_responses")
+}
+
+model ExtractedEmailData {
+  id            String        @id @default(uuid())
+  emailId       String
+  llmResponseId String
+  category      EmailCategory
+  priority      Priority
+  sentiment     Sentiment
+  summary       String
+  tags          String[]      @default([])
+  confidence    Float
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  email       Email              @relation(fields: [emailId], references: [id], onDelete: Cascade)
+  llmResponse LLMResponse        @relation(fields: [llmResponseId], references: [id], onDelete: Cascade)
+  entities    EntityExtraction[]
+  actionItems ActionItem[]
+
+  @@index([emailId])
+  @@index([category])
+  @@index([priority])
+  @@map("extracted_email_data")
+}
+
+model EntityExtraction {
+  id              String     @id @default(uuid())
+  extractedDataId String
+  entityType      EntityType
+  entityValue     String
+  confidence      Float
+  startPosition   Int?
+  endPosition     Int?
+  context         String?
+  createdAt       DateTime   @default(now())
+
+  extractedData ExtractedEmailData @relation(fields: [extractedDataId], references: [id], onDelete: Cascade)
+
+  @@index([extractedDataId])
+  @@index([entityType])
+  @@map("entity_extractions")
+}
+
+model ActionItem {
+  id              String     @id @default(uuid())
+  extractedDataId String
+  description     String
+  actionType      ActionType
+  dueDate         DateTime?
+  priority        Priority
+  isCompleted     Boolean    @default(false)
+  completedAt     DateTime?
+  assignedTo      String?
+  relatedEntityId String?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  extractedData ExtractedEmailData @relation(fields: [extractedDataId], references: [id], onDelete: Cascade)
+
+  @@index([extractedDataId])
+  @@index([isCompleted])
+  @@index([actionType])
+  @@map("action_items")
+}
+
+model PromptTemplate {
+  id                   String          @id @default(uuid())
+  name                 String          @unique
+  description          String
+  template             String
+  expectedOutputSchema Json
+  categories           EmailCategory[]
+  isActive             Boolean         @default(true)
+  version              String          @default("1.0.0")
+  createdAt            DateTime        @default(now())
+  updatedAt            DateTime        @updatedAt
+
+  @@index([isActive])
+  @@map("prompt_templates")
+}
+
+model ProcessingRule {
+  id         String   @id @default(uuid())
+  name       String   @unique
+  conditions Json // Array of RuleCondition
+  actions    Json // Array of RuleAction
+  priority   Int
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([isActive])
+  @@index([priority])
+  @@map("processing_rules")
+}
+
+// Enums
+enum ProcessingStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  SKIPPED
+}
+
+enum EmailCategory {
+  PERSONAL
+  WORK
+  MARKETING
+  NEWSLETTER
+  SUPPORT
+  NOTIFICATION
+  INVOICE
+  RECEIPT
+  APPOINTMENT
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum Sentiment {
+  POSITIVE
+  NEGATIVE
+  NEUTRAL
+  MIXED
+}
+
+enum EntityType {
+  PERSON
+  ORGANIZATION
+  DATE
+  TIME
+  LOCATION
+  EMAIL_ADDRESS
+  PHONE_NUMBER
+  URL
+  AMOUNT
+  CURRENCY
+  INVOICE_NUMBER
+  ACCOUNT_NUMBER
+  PRODUCT
+}
+
+enum ActionType {
+  SAVE_INVOICE
+  SCHEDULE_MEETING
+  REPLY_REQUIRED
+  FOLLOW_UP
+  ARCHIVE
+  FORWARD
+  CALL
+  REVIEW_DOCUMENT
+  PAYMENT_DUE
+}
+
+model EmailAccount {
+  id                    String        @id @default(uuid())
+  userId                String // Link to user
+  accountType           EmailProvider @default(GMAIL)
+  email                 String        @unique // Email address
+  displayName           String? // Custom name for this account
+  appPassword           String // Encrypted app password (for Gmail/Outlook)
+  imapHost              String        @default("imap.gmail.com")
+  imapPort              Int           @default(993)
+  useSSL                Boolean       @default(true)
+  isActive              Boolean       @default(true)
+  lastSyncAt            DateTime?
+  lastProcessedEmailId  String? // For incremental processing
+  lastProcessedAt       DateTime?
+  processingDateFrom    DateTime? // Current processing range
+  processingDateTo      DateTime?
+  isCurrentlyProcessing Boolean       @default(false)
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+
+  // Relations
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  emails Email[]
+
+  @@index([userId])
+  @@index([email])
+  @@index([isActive])
+  @@map("email_accounts")
+}
+
+enum EmailProvider {
+  GMAIL
+  OUTLOOK
+  YAHOO
+  IMAP_GENERIC
+}

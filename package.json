@@ -3,6 +3,9 @@
   "version": "0.0.0",
   "license": "MIT",
   "scripts": {
+    "frontend:dev": "npx nx serve admin.client",
+    "frontend:build": "npx nx build admin.client",
+    "frontend:test": "npx nx test admin.client",
     "backend:dev": "npx nx serve backend.root",
     "backend:build": "npx nx build backend.root",
     "backend:build:prod": "npx nx build backend.root --configuration=production",
@@ -71,7 +74,9 @@
     "packages/*"
   ],
   "dependencies": {
+    "@prisma/client": "^6.11.0",
     "axios": "^1.6.0",
+    "prisma": "^6.11.0",
     "react": "19.0.0",
     "react-dom": "19.0.0",
     "react-router-dom": "6.29.0"

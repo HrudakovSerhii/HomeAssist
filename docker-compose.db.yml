@@ -1,0 +1,42 @@
+version: '3.8'
+
+services:
+  postgres-dev:
+    image: postgres:16-alpine
+    container_name: home-ai-db-dev
+    environment:
+      POSTGRES_DB: home_ai_dev
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - '5432:5432'
+    volumes:
+      - pgdata-dev:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  postgres-test:
+    image: postgres:16-alpine
+    container_name: home-ai-db-test
+    environment:
+      POSTGRES_DB: home_ai_test
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - '5433:5432'
+    volumes:
+      - pgdata-test:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  pgdata-dev:
+  pgdata-test: 
