@@ -3,3 +3,107 @@
 @tailwind utilities;
 
 /* You can add global styles to this file, and also import other style files */
+
+/* Custom base styles */
+@layer base {
+  body {
+    font-family: theme('fontFamily.sans');
+    background-color: theme('colors.background');
+    color: theme('colors.text.primary');
+    line-height: 1.6;
+    font-size: 14px;
+  }
+  
+  /* Ensure consistent box-sizing */
+  * {
+    box-sizing: border-box;
+  }
+}
+
+/* Custom component classes */
+@layer components {
+  /* Loading spinner animation */
+  .animate-spin-slow {
+    animation: spin 1s linear infinite;
+  }
+  
+  /* Button variants that match the design system */
+  .btn-primary {
+    @apply bg-primary text-white border-primary hover:bg-primary-700 focus:ring-primary/20;
+  }
+  
+  .btn-secondary {
+    @apply bg-secondary text-white border-secondary hover:bg-secondary-600 focus:ring-secondary/20;
+  }
+  
+  .btn-success {
+    @apply bg-success text-white border-success hover:bg-success-600 focus:ring-success/20;
+  }
+  
+  .btn-warning {
+    @apply bg-warning text-white border-warning hover:bg-warning-600 focus:ring-warning/20;
+  }
+  
+  .btn-error {
+    @apply bg-error text-white border-error hover:bg-error-600 focus:ring-error/20;
+  }
+  
+  /* Form input styles */
+  .form-input {
+    @apply w-full px-3 py-2 border border-border rounded-md bg-surface text-text-primary;
+    @apply focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary;
+    @apply transition-colors duration-200;
+  }
+  
+  .form-select {
+    @apply form-input cursor-pointer;
+  }
+  
+  .form-label {
+    @apply block text-sm font-medium text-text-primary mb-1;
+  }
+  
+  /* Card component */
+  .card {
+    @apply bg-surface border border-border rounded-md shadow-sm;
+  }
+  
+  /* Status badge base styles */
+  .status-badge {
+    @apply inline-flex items-center px-2 py-1 rounded-full text-xs font-medium uppercase tracking-wide;
+  }
+  
+  /* Container for main content areas */
+  .container-content {
+    @apply max-w-content mx-auto px-8;
+  }
+}
+
+/* Custom utility classes */
+@layer utilities {
+  /* Hide scrollbar but keep scrolling functionality */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+  
+  /* Text truncation with ellipsis */
+  .text-truncate {
+    @apply overflow-hidden whitespace-nowrap;
+    text-overflow: ellipsis;
+  }
+  
+  /* Smooth transitions for interactive elements */
+  .transition-smooth {
+    @apply transition-all duration-200 ease-in-out;
+  }
+  
+  /* Focus ring with primary color */
+  .focus-ring {
+    @apply focus:outline-none focus:ring-2 focus:ring-primary/20 focus:ring-offset-2;
+  }
+}
