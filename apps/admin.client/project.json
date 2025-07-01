@@ -1,0 +1,9 @@
+{
+  "name": "admin.client",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "apps/admin.client/src",
+  "projectType": "application",
+  "tags": [],
+  "// targets": "to see all targets run: nx show project admin.client --web",
+  "targets": {}
+}
