@@ -3,9 +3,9 @@ version: '3.8'
 services:
   postgres-dev:
     image: postgres:16-alpine
-    container_name: home-ai-db-dev
+    container_name: home-ai-assist-db-dev
     environment:
-      POSTGRES_DB: home_ai_dev
+      POSTGRES_DB: home_ai_assist_dev
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
     ports:
@@ -21,9 +21,9 @@ services:
 
   postgres-test:
     image: postgres:16-alpine
-    container_name: home-ai-db-test
+    container_name: home-ai-assist-db-test
     environment:
-      POSTGRES_DB: home_ai_test
+      POSTGRES_DB: home_ai_assist_test
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
     ports:
