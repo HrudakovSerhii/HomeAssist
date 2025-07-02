@@ -1,15 +1,21 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { 
-  User, 
-  LoginCredentials, 
-  LoginResponse, 
-  RegisterData, 
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  ReactNode,
+} from 'react';
+import {
+  User,
+  LoginCredentials,
+  LoginResponse,
+  RegisterData,
   RegisterResponse,
   AccountData,
-  AddAccountResponse 
+  AddAccountResponse,
 } from '../types';
-import { authService } from '../services/authService';
-import { STORAGE_KEYS } from '../utils/storage';
+import { authService } from '../services';
+import { STORAGE_KEYS } from '../utils';
 
 interface AuthContextType {
   user: User | null;
@@ -23,7 +29,24 @@ interface AuthContextType {
   refreshUser: () => Promise<void>;
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+// Create a default context value to prevent undefined errors
+const defaultAuthContext: AuthContextType = {
+  user: null,
+  loading: true,
+  isAuthenticated: false,
+  login: async () => Promise.reject(new Error('AuthProvider not initialized')),
+  register: async () =>
+    Promise.reject(new Error('AuthProvider not initialized')),
+  logout: async () => Promise.reject(new Error('AuthProvider not initialized')),
+  checkAuth: async () =>
+    Promise.reject(new Error('AuthProvider not initialized')),
+  addEmailAccount: async () =>
+    Promise.reject(new Error('AuthProvider not initialized')),
+  refreshUser: async () =>
+    Promise.reject(new Error('AuthProvider not initialized')),
+};
+
+const AuthContext = createContext<AuthContextType>(defaultAuthContext);
 
 interface AuthProviderProps {
   children: ReactNode;
@@ -35,16 +58,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   // Check authentication status on mount
   useEffect(() => {
-    checkAuth();
+    checkAuth().finally();
   }, []);
 
   const checkAuth = async (): Promise<void> => {
     setLoading(true);
+    debugger;
     try {
       // Check if user exists in session storage
       const storedUser = authService.getUserFromSession();
       const isAuthenticated = authService.isAuthenticated();
-      
+
       if (storedUser && isAuthenticated) {
         setUser(storedUser);
       } else {
@@ -61,21 +85,26 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-  const login = async (credentials: LoginCredentials): Promise<LoginResponse> => {
+  const login = async (
+    credentials: LoginCredentials
+  ): Promise<LoginResponse> => {
     setLoading(true);
     try {
       const response = await authService.login(credentials);
-      
+
       if (response.success && response.user) {
         setUser(response.user);
         authService.saveUserToSession(response.user);
-        
+
         // Store additional session info
         if (response.hasActiveAccounts !== undefined) {
-          sessionStorage.setItem(STORAGE_KEYS.HAS_ACTIVE_ACCOUNTS, String(response.hasActiveAccounts));
+          sessionStorage.setItem(
+            STORAGE_KEYS.HAS_ACTIVE_ACCOUNTS,
+            String(response.hasActiveAccounts)
+          );
         }
       }
-      
+
       return response;
     } catch (error) {
       console.error('Login failed:', error);
@@ -85,16 +114,19 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-  const register = async (userData: RegisterData): Promise<RegisterResponse> => {
+  const register = async (
+    userData: RegisterData
+  ): Promise<RegisterResponse> => {
     setLoading(true);
+
     try {
       const response = await authService.register(userData);
-      
+
       if (response.success && response.user) {
         setUser(response.user);
         authService.saveUserToSession(response.user);
       }
-      
+
       return response;
     } catch (error) {
       console.error('Registration failed:', error);
@@ -116,10 +148,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-  const addEmailAccount = async (accountData: AccountData): Promise<AddAccountResponse> => {
+  const addEmailAccount = async (
+    accountData: AccountData
+  ): Promise<AddAccountResponse> => {
     try {
       const response = await authService.addEmailAccount(accountData);
-      
+
       // If account was added successfully, refresh user data
       if (response.success && response.account && user) {
         const updatedUser = {
@@ -129,7 +163,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         setUser(updatedUser);
         authService.saveUserToSession(updatedUser);
       }
-      
+
       return response;
     } catch (error) {
       console.error('Add account failed:', error);
@@ -139,7 +173,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const refreshUser = async (): Promise<void> => {
     if (!user) return;
-    
+
     try {
       // In a real app, you might fetch updated user data from the server
       // For now, we'll just check the current session
@@ -164,18 +198,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     refreshUser,
   };
 
-  return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
 // Custom hook to use the auth context
 export const useAuth = (): AuthContextType => {
   const context = useContext(AuthContext);
+
   if (context === undefined) {
     throw new Error('useAuth must be used within an AuthProvider');
   }
+
   return context;
-}; 
+};

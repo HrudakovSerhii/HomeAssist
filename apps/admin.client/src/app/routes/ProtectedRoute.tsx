@@ -1,7 +1,7 @@
 import React from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../hooks';
-import { LoadingSpinner } from './ui/LoadingSpinner';
+import { PageLoader } from "../components";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -9,26 +9,21 @@ interface ProtectedRouteProps {
   requiresAccounts?: boolean;
 }
 
-export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ 
-  children, 
+export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
+  children,
   redirectTo = '/login',
-  requiresAccounts = false 
+  requiresAccounts = false
 }) => {
   const { user, loading } = useAuth();
 
   // Show loading spinner while authentication is being checked
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center">
-          <LoadingSpinner size="lg" />
-          <p className="mt-4 text-gray-600">Loading...</p>
-        </div>
-      </div>
+        <PageLoader message="Loading..." size="lg" />
     );
   }
 
-  // If no user is authenticated, redirect to login
+  // If no user is authenticated, redirect to login page
   if (!user) {
     return <Navigate to={redirectTo} replace />;
   }
@@ -42,4 +37,4 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   return <>{children}</>;
 };
 
-export default ProtectedRoute; 
+export default ProtectedRoute;

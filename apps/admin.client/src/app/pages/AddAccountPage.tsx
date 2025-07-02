@@ -1,18 +1,18 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../hooks';
-import { useApi } from '../hooks';
-import { authService, apiClient } from '../services';
+import { useApi, useAuth } from '../hooks';
+import { apiClient, authService } from '../services';
 import { ACCOUNT_TYPES } from '../../../constants';
-import { AccountData, User, ImapTestData, ImapTestResponse, AddAccountResponse } from '../types';
+import { AccountData, ImapTestData, ImapTestResponse } from '../types';
+
 import {
+  AlertMessage,
   Button,
   Card,
-  InputField,
-  SelectField,
   FormGroup,
-  AlertMessage,
+  InputField,
   LoadingSpinner,
+  SelectField,
 } from '../components';
 
 export const AddAccountPage: React.FC = () => {
@@ -25,58 +25,64 @@ export const AddAccountPage: React.FC = () => {
     accountType: ACCOUNT_TYPES.GMAIL,
     userId: '',
   });
-  
+
   const testConnectionApi = useApi<ImapTestResponse>();
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const [currentStep, setCurrentStep] = useState<'form' | 'testing' | 'adding' | 'success'>('form');
+  const [currentStep, setCurrentStep] = useState<
+    'form' | 'testing' | 'adding' | 'success'
+  >('form');
 
   useEffect(() => {
     if (!user) {
       navigate('/login');
     } else {
-      setFormData(prev => ({ ...prev, userId: user.id }));
+      setFormData((prev) => ({ ...prev, userId: user.id }));
     }
   }, [user, navigate]);
 
   const handleInputChange = (name: string, value: string) => {
     setFormData((prev: AccountData) => ({
       ...prev,
-      [name]: value
+      [name]: value,
     }));
   };
 
   const handleTestConnection = async () => {
     setCurrentStep('testing');
-    
+
     const testData: ImapTestData = {
       email: formData.email,
-      appPassword: formData.appPassword
+      appPassword: formData.appPassword,
     };
 
     await testConnectionApi.execute(async () => {
-      const response = await apiClient.post<ImapTestResponse>('/auth/test-imap', testData);
-      return response;
+      return await apiClient.post<ImapTestResponse>(
+        '/auth/test-imap',
+        testData
+      );
     });
   };
 
   const handleAddAccount = async () => {
     if (!user) return;
-    
+
     setCurrentStep('adding');
-    
+
     const accountData: AccountData = {
       ...formData,
       displayName: formData.displayName || formData.email,
-      userId: user.id
+      userId: user.id,
     };
 
     try {
       const result = await addEmailAccount(accountData);
-      
+
       if (result.success) {
         setCurrentStep('success');
-        setSuccessMessage(`Email account "${formData.email}" added successfully!`);
-        
+        setSuccessMessage(
+          `Email account "${formData.email}" added successfully!`
+        );
+
         // Clear form
         setFormData({
           email: '',
@@ -88,7 +94,11 @@ export const AddAccountPage: React.FC = () => {
 
         // Auto-redirect after success
         setTimeout(() => {
-          if (window.confirm('Email account added successfully! Would you like to go to the dashboard to start processing emails?')) {
+          if (
+            window.confirm(
+              'Email account added successfully! Would you like to go to the dashboard to start processing emails?'
+            )
+          ) {
             navigate('/dashboard');
           } else {
             setCurrentStep('form');
@@ -107,7 +117,7 @@ export const AddAccountPage: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!user) {
       navigate('/login');
       return;
@@ -120,19 +130,19 @@ export const AddAccountPage: React.FC = () => {
   // Handle test connection success
   useEffect(() => {
     if (testConnectionApi.data?.success && currentStep === 'testing') {
-      handleAddAccount();
+      handleAddAccount().finally();
     }
   }, [testConnectionApi.data, currentStep]);
 
   const getActiveAccountsInfo = () => {
     if (!user?.accounts) return 'No email accounts connected yet';
-    
-    const activeAccounts = user.accounts.filter(acc => acc.isActive);
+
+    const activeAccounts = user.accounts.filter((acc) => acc.isActive);
     const count = activeAccounts.length;
-    
+
     if (count === 0) return 'No email accounts connected yet';
-    
-    const accountsList = activeAccounts.map(acc => acc.email).join(', ');
+
+    const accountsList = activeAccounts.map((acc) => acc.email).join(', ');
     return `${count} email account(s) connected • ${accountsList}`;
   };
 
@@ -177,8 +187,12 @@ export const AddAccountPage: React.FC = () => {
         {/* Header */}
         <div className="mb-8">
           <div className="text-6xl mb-4">📧</div>
-          <h1 className="text-3xl font-bold text-slate-800 mb-2">Add Email Account</h1>
-          <p className="text-slate-600 text-lg">Connect your email account to start processing emails</p>
+          <h1 className="text-3xl font-bold text-slate-800 mb-2">
+            Add Email Account
+          </h1>
+          <p className="text-slate-600 text-lg">
+            Connect your email account to start processing emails
+          </p>
         </div>
 
         {/* User Info */}
@@ -186,18 +200,12 @@ export const AddAccountPage: React.FC = () => {
           <h3 className="text-lg font-semibold text-slate-800 mb-2">
             {user.displayName || user.username}
           </h3>
-          <p className="text-slate-600 text-sm">
-            {getActiveAccountsInfo()}
-          </p>
+          <p className="text-slate-600 text-sm">{getActiveAccountsInfo()}</p>
         </div>
 
         {/* Messages */}
         {getCurrentError() && (
-          <AlertMessage
-            type="error"
-            message={getCurrentError()!}
-            show={true}
-          />
+          <AlertMessage type="error" message={getCurrentError()!} show={true} />
         )}
 
         {getCurrentMessage() && !getCurrentError() && (
@@ -272,15 +280,18 @@ export const AddAccountPage: React.FC = () => {
             loading={isLoading}
             className="w-full mb-4"
           >
-            {isLoading 
-              ? (currentStep === 'testing' ? 'Testing Connection...' : 'Adding Account...')
-              : 'Add Email Account'
-            }
+            {isLoading
+              ? currentStep === 'testing'
+                ? 'Testing Connection...'
+                : 'Adding Account...'
+              : 'Add Email Account'}
           </Button>
 
           {/* Info Box */}
           <div className="bg-blue-50 text-blue-800 p-4 rounded-lg text-sm">
-            <h4 className="font-semibold mb-2">How to get Gmail App Password:</h4>
+            <h4 className="font-semibold mb-2">
+              How to get Gmail App Password:
+            </h4>
             <ol className="list-decimal list-inside space-y-1 ml-4">
               <li>Go to your Google Account settings</li>
               <li>Enable 2-Step Verification if not already enabled</li>
@@ -316,4 +327,6 @@ export const AddAccountPage: React.FC = () => {
       </Card>
     </div>
   );
-}; 
+};
+
+export default AddAccountPage;

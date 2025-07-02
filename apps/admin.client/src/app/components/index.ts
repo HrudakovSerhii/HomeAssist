@@ -28,8 +28,5 @@ export { AuthTabs } from './auth/AuthTabs';
 export { LoginForm } from './auth/LoginForm';
 export { RegisterForm } from './auth/RegisterForm';
 
-// Route Components
-export { ProtectedRoute } from './ProtectedRoute';
-
 // Types
-export type { User, EmailAccount, DataItem, FilterOptions, PaginationInfo, TableColumn, ApiResponse } from '../types'; 
+export type { User, EmailAccount, DataItem, FilterOptions, PaginationInfo, TableColumn, ApiResponse } from '../types';
