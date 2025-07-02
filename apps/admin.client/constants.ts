@@ -1,3 +1,55 @@
+// Filter options data
+import { DropdownOption } from './src/app/components';
+
+export const DashboardFilterOptions = {
+  categories: [
+    { value: 'Work', label: 'Work' },
+    { value: 'Personal', label: 'Personal' },
+    { value: 'Finance', label: 'Finance' },
+    { value: 'Health', label: 'Health' },
+  ] as DropdownOption[],
+
+  priorities: [
+    { value: 'urgent', label: 'Urgent' },
+    { value: 'high', label: 'High' },
+    { value: 'medium', label: 'Medium' },
+    { value: 'low', label: 'Low' },
+  ] as DropdownOption[],
+
+  sentiments: [
+    { value: 'positive', label: 'Positive' },
+    { value: 'neutral', label: 'Neutral' },
+    { value: 'negative', label: 'Negative' },
+  ] as DropdownOption[],
+
+  confidenceLevels: [
+    { value: '0.9', label: '90%+' },
+    { value: '0.8', label: '80%+' },
+    { value: '0.7', label: '70%+' },
+    { value: '0.6', label: '60%+' },
+  ] as DropdownOption[],
+
+  entityTypes: [
+    { value: 'Date', label: 'Date' },
+    { value: 'Person', label: 'Person' },
+    { value: 'Organization', label: 'Organization' },
+    { value: 'Product', label: 'Product' },
+    { value: 'Location', label: 'Location' },
+    { value: 'Time', label: 'Time' },
+    { value: 'Event', label: 'Event' },
+  ] as DropdownOption[],
+
+  actionTypes: [
+    { value: 'meeting', label: 'Meeting' },
+    { value: 'task', label: 'Task' },
+    { value: 'follow-up', label: 'Follow-up' },
+    { value: 'review', label: 'Review' },
+    { value: 'notification', label: 'Notification' },
+    { value: 'tracking', label: 'Tracking' },
+    { value: 'preparation', label: 'Preparation' },
+  ] as DropdownOption[],
+};
+
 // Filter Options Constants
 export const CATEGORY_OPTIONS = [
   { value: '', label: 'All Categories' },

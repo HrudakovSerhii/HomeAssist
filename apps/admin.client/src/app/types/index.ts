@@ -17,6 +17,8 @@ export type {
   ApiError
 } from './api';
 
+export * from './dashboard';
+
 export interface FilterOptions {
   search: string;
   category: string;

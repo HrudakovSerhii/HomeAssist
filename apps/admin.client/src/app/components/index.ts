@@ -11,6 +11,7 @@ export { StatusBadge } from './ui/StatusBadge';
 export { LoadingSpinner } from './ui/LoadingSpinner';
 export { AlertMessage } from './ui/AlertMessage';
 export { PageLoader } from './ui/PageLoader';
+export { Dropdown } from './ui/Dropdown';
 
 // Layout Components
 export { PageContainer } from './layout/PageContainer';
@@ -30,3 +31,4 @@ export { RegisterForm } from './auth/RegisterForm';
 
 // Types
 export type { User, EmailAccount, DataItem, FilterOptions, PaginationInfo, TableColumn, ApiResponse } from '../types';
+export type { DropdownOption } from './ui/Dropdown';
