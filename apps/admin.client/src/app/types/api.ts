@@ -1,4 +1,6 @@
 // Authentication Types
+import { IsOptional, IsString } from 'class-validator';
+
 export interface LoginCredentials {
   username: string;
   password: string;
@@ -138,4 +140,4 @@ export interface ApiError {
   status?: number;
   code?: string;
   details?: Record<string, any>;
-} 
+}

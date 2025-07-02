@@ -1,43 +1,19 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState } from 'react';
 import { useAuth } from '../hooks';
-import { AuthLayout, AlertMessage } from '../components';
-import { LoginForm } from '../components/auth/LoginForm';
-import { RegisterForm } from '../components/auth/RegisterForm';
-import { AuthTabs } from '../components/auth/AuthTabs';
-import { User } from '../types';
+import { AuthLayout, AlertMessage, LoginForm, RegisterForm, AuthTabs } from '../components';
+
+import type { User } from '../types';
 
 const LoginPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'login' | 'register'>('login');
   const [successMessage, setSuccessMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
   const { user, loading } = useAuth();
-  const navigate = useNavigate();
-
-  // Handle successful authentication navigation
-  useEffect(() => {
-    if (user && !loading) {
-      // Navigate based on user's account status
-      if (user.accounts && user.accounts.length > 0) {
-        navigate('/dashboard');
-      } else {
-        navigate('/add-account');
-      }
-    }
-  }, [user, loading, navigate]);
 
   const handleLoginSuccess = (authenticatedUser: User, hasAccounts: boolean) => {
     setErrorMessage('');
     setSuccessMessage('Login successful! Redirecting...');
-    
-    // Navigation is handled by the useEffect above
-    setTimeout(() => {
-      if (hasAccounts) {
-        navigate('/dashboard');
-      } else {
-        navigate('/add-account');
-      }
-    }, 1000);
+    // PublicRoute will handle the redirect automatically
   };
 
   const handleRegisterSuccess = () => {

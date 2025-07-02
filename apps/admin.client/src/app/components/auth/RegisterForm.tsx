@@ -2,45 +2,62 @@ import React from 'react';
 import { useAuth, useApi, useForm } from '../../hooks';
 import { FormGroup, InputField, SubmitButton } from '../';
 import { RegisterData } from '../../types';
-import { validationSchemas } from '../../utils/validation';
+import { validationSchemas } from '../../utils';
 
 interface RegisterFormProps {
   onSuccess: () => void;
   onError: (error: string) => void;
 }
 
-export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, onError }) => {
+export const RegisterForm: React.FC<RegisterFormProps> = ({
+  onSuccess,
+  onError,
+}) => {
   const { register } = useAuth();
-  const { execute, loading } = useApi();
-  
+  const { execute, loading } = useApi(register);
+
   const form = useForm({
     initialValues: {
-      username: '',
-      password: '',
-      displayName: '',
-      email: ''
+      username: 'Serhii',
+      password: 'Serhii123',
+      displayName: 'Serhii',
+      email: 'hrudakovserhii@gmail.com',
     },
-    validationSchema: validationSchemas.register
+    validationSchema: validationSchemas.register,
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // Clear any previous errors
     onError('');
-    
+
+    // Debug: Log form state before validation
+    console.log('Form values:', form.values);
+    console.log('Form errors before validation:', form.errors);
+
     // Validate using the form's built-in validation
-    if (!form.validate()) {
+    const isValid = form.validate();
+    console.log('Validation result:', isValid);
+    console.log('Form errors after validation:', form.errors);
+
+    if (!isValid) {
+      // Display validation errors to user
+      const errorMessages = Object.values(form.errors).filter((error) => error);
+      if (errorMessages.length > 0) {
+        onError(`Please fix the following errors: ${errorMessages.join(', ')}`);
+      }
       return;
     }
 
     try {
-      const result = await execute(() => register(form.values as RegisterData));
-      
+      debugger;
+      const result = await execute(form.values as RegisterData);
+
       if (result?.success) {
         // Clear form on success
         form.reset();
-        
+
         // Call success handler
         onSuccess();
       } else {
@@ -113,7 +130,12 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, onError }
       <div className="pt-4">
         <SubmitButton
           loading={loading}
-          disabled={loading || !form.values.username || !form.values.password || !form.values.displayName}
+          disabled={
+            loading ||
+            !form.values.username ||
+            !form.values.password ||
+            !form.values.displayName
+          }
           fullWidth={true}
         >
           Create Account
@@ -122,8 +144,10 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, onError }
 
       {/* Additional Help Text */}
       <div className="text-center text-sm text-gray-500 pt-2">
-        <p>By creating an account, you agree to use secure IMAP authentication</p>
+        <p>
+          By creating an account, you agree to use secure IMAP authentication
+        </p>
       </div>
     </form>
   );
-}; 
+};

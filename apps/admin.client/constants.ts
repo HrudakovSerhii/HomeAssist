@@ -36,36 +36,15 @@ export const ACCOUNT_TYPES = {
   GMAIL: 'GMAIL',
   OUTLOOK: 'OUTLOOK',
   YAHOO: 'YAHOO',
-  IMAP_GENERIC: 'IMAP_GENERIC'
+  IMAP_GENERIC: 'IMAP_GENERIC',
 } as const;
 
 export const ACCOUNT_TYPE_OPTIONS = [
   { value: ACCOUNT_TYPES.GMAIL, label: 'Gmail' },
   { value: ACCOUNT_TYPES.OUTLOOK, label: 'Outlook' },
   { value: ACCOUNT_TYPES.YAHOO, label: 'Yahoo' },
-  { value: ACCOUNT_TYPES.IMAP_GENERIC, label: 'Other IMAP' }
+  { value: ACCOUNT_TYPES.IMAP_GENERIC, label: 'Other IMAP' },
 ] as const;
-
-// API Endpoints (to be used later)
-export const API_ENDPOINTS = {
-  auth: {
-    login: '/api/auth/login',
-    register: '/api/auth/register',
-    logout: '/api/auth/logout',
-    refresh: '/api/auth/refresh',
-  },
-  accounts: {
-    list: '/api/accounts',
-    add: '/api/accounts',
-    test: '/api/accounts/test',
-    delete: (id: string) => `/api/accounts/${id}`,
-  },
-  data: {
-    list: '/api/data',
-    search: '/api/data/search',
-    export: '/api/data/export',
-  },
-} as const;
 
 // Form Validation Constants
 export const VALIDATION = {
@@ -76,7 +55,8 @@ export const VALIDATION = {
   password: {
     required: 'Password is required',
     minLength: 'Password must be at least 8 characters',
-    pattern: 'Password must contain at least one uppercase letter, one lowercase letter, and one number',
+    pattern:
+      'Password must contain at least one uppercase letter, one lowercase letter, and one number',
   },
   required: 'This field is required',
 } as const;

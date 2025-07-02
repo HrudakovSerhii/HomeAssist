@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApi, useAuth } from '../hooks';
-import { apiClient, authService } from '../services';
+import { authService } from '../services';
 import { ACCOUNT_TYPES } from '../../../constants';
 import { AccountData, ImapTestData, ImapTestResponse } from '../types';
 
@@ -26,7 +26,10 @@ export const AddAccountPage: React.FC = () => {
     userId: '',
   });
 
-  const testConnectionApi = useApi<ImapTestResponse>();
+  const testConnectionApi = useApi<ImapTestResponse>(
+    authService.testImapConnection
+  );
+
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [currentStep, setCurrentStep] = useState<
     'form' | 'testing' | 'adding' | 'success'
@@ -55,12 +58,7 @@ export const AddAccountPage: React.FC = () => {
       appPassword: formData.appPassword,
     };
 
-    await testConnectionApi.execute(async () => {
-      return await apiClient.post<ImapTestResponse>(
-        '/auth/test-imap',
-        testData
-      );
-    });
+    await testConnectionApi.execute(testData);
   };
 
   const handleAddAccount = async () => {
@@ -196,7 +194,7 @@ export const AddAccountPage: React.FC = () => {
         </div>
 
         {/* User Info */}
-        <div className="bg-slate-50 rounded-lg p-4 mb-8 text-left">
+        <div className="bg-slate-50 rounded-lg p-4 mb-4 text-left">
           <h3 className="text-lg font-semibold text-slate-800 mb-2">
             {user.displayName || user.username}
           </h3>
@@ -217,7 +215,7 @@ export const AddAccountPage: React.FC = () => {
         )}
 
         {/* Add Account Form */}
-        <form onSubmit={handleSubmit} className="text-left mb-8">
+        <form onSubmit={handleSubmit} className="text-left mt-4 mb-4">
           <FormGroup>
             <InputField
               name="account-email"

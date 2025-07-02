@@ -63,7 +63,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const checkAuth = async (): Promise<void> => {
     setLoading(true);
-    debugger;
+
     try {
       // Check if user exists in session storage
       const storedUser = authService.getUserFromSession();
@@ -89,6 +89,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     credentials: LoginCredentials
   ): Promise<LoginResponse> => {
     setLoading(true);
+
     try {
       const response = await authService.login(credentials);
 

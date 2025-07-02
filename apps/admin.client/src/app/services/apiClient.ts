@@ -1,7 +1,8 @@
-import { ApiError } from '../types/api';
+import { ApiError } from '../types';
+import { API_PREFIX } from '../../configuration';
 
 class ApiClient {
-  private baseURL = '/api';
+  private baseURL = API_PREFIX;
   private token: string | null = null;
 
   constructor() {
@@ -27,7 +28,7 @@ class ApiClient {
     options: RequestInit = {}
   ): Promise<T> {
     const url = `${this.baseURL}${endpoint}`;
-    
+
     const config: RequestInit = {
       headers: {
         'Content-Type': 'application/json',
@@ -39,11 +40,11 @@ class ApiClient {
 
     try {
       const response = await fetch(url, config);
-      
+
       // Handle different response types
       const contentType = response.headers.get('content-type');
       let data: any;
-      
+
       if (contentType && contentType.includes('application/json')) {
         data = await response.json();
       } else {
@@ -51,13 +52,12 @@ class ApiClient {
       }
 
       if (!response.ok) {
-        const error: ApiError = {
+        throw {
           message: data.message || `HTTP error! status: ${response.status}`,
           status: response.status,
           code: data.code,
           details: data.details,
         };
-        throw error;
       }
 
       return data;
@@ -75,10 +75,10 @@ class ApiClient {
   }
 
   async get<T>(endpoint: string, params?: Record<string, any>): Promise<T> {
-    const url = params 
+    const url = params
       ? `${endpoint}?${new URLSearchParams(params).toString()}`
       : endpoint;
-    
+
     return this.request<T>(url, {
       method: 'GET',
     });
@@ -125,4 +125,4 @@ class ApiClient {
 }
 
 // Create singleton instance
-export const apiClient = new ApiClient(); 
+export const apiClient = new ApiClient();

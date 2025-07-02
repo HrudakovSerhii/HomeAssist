@@ -3,9 +3,9 @@
   "version": "0.0.0",
   "license": "MIT",
   "scripts": {
-    "frontend:dev": "npx nx serve admin.client",
-    "frontend:build": "npx nx build admin.client",
-    "frontend:test": "npx nx test admin.client",
+    "frontend:dev": "npx dotenv -e .env.development -- npx nx serve admin.client",
+    "frontend:build": "npx dotenv -e .env.test -- npx nx build admin.client",
+    "frontend:test": "npx dotenv -e .env.development -- npx nx test admin.client",
     "backend:dev": "npx dotenv -e .env.development -- npx nx serve backend.root",
     "backend:build": "npx dotenv -e .env.test -- npx nx build backend.root",
     "backend:build:prod": "npx dotenv -e .env.production -- npx nx build backend.root --configuration=production",

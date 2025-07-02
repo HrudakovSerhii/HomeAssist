@@ -2,7 +2,7 @@ import React from 'react';
 import { useAuth, useApi, useForm } from '../../hooks';
 import { FormGroup, InputField, SubmitButton } from '../';
 import { User, LoginCredentials } from '../../types';
-import { validationSchemas } from '../../utils/validation';
+import { validationSchemas } from '../../utils';
 
 interface LoginFormProps {
   onSuccess: (user: User, hasAccounts: boolean) => void;
@@ -11,36 +11,39 @@ interface LoginFormProps {
 
 export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, onError }) => {
   const { login } = useAuth();
-  const { execute, loading } = useApi();
-  
+  const { execute, loading } = useApi(login);
+
   const form = useForm({
     initialValues: {
       username: '',
-      password: ''
+      password: '',
     },
-    validationSchema: validationSchemas.login
+    validationSchema: validationSchemas.login,
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // Clear any previous errors
     onError('');
-    
+
     // Validate using the form's built-in validation
     if (!form.validate()) {
       return;
     }
 
     try {
-      const result = await execute(() => login(form.values as LoginCredentials));
-      
+      const result = await execute(form.values as LoginCredentials);
+
       if (result?.success && result.user) {
         // Clear form on success
         form.reset();
-        
+
         // Call success handler
-        onSuccess(result.user, result.user.accounts?.length > 0);
+        onSuccess(
+          result.user,
+          (result.user?.accounts && result.user?.accounts?.length > 0) || false
+        );
       } else {
         onError(result?.message || 'Login failed. Please try again.');
       }
@@ -96,4 +99,4 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, onError }) => {
       </div>
     </form>
   );
-}; 
+};
