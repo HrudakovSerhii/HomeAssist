@@ -17,39 +17,46 @@ import {
   Max,
   IsBoolean,
   IsDate,
+  IsISO8601,
 } from 'class-validator';
 import { Transform, Type } from 'class-transformer';
 import { EmailService } from './email.service';
 import { EmailProcessorService } from './email-processor.service';
-
 import { EmailIngestionService } from './email-ingestion.service';
 import { TemplateService } from '../process-template/template.service';
 
+import type {
+  IngestEmailsDto as ApiIngestEmailsDto,
+  IngestUserEmailsDto as ApiIngestUserEmailsDto,
+  ProcessEmailDto as ApiProcessEmailDto,
+  ProcessBatchDto as ApiProcessBatchDto,
+  EmailIngestionResponse as ApiEmailIngestionResponse,
+  ProcessingStatusResponse as ApiProcessingStatusResponse,
+} from '@home-assist/api-types';
+
 // DTOs
-export class IngestEmailsDto {
+export class IngestEmailsDto implements ApiIngestEmailsDto {
   @IsString()
   userId: string;
 
-  @IsOptional()
   @Type(() => Number)
   @IsNumber()
   @Min(1)
   @Max(50)
-  limit?: number = 5;
+  limit: number = 5;
 
-  @IsOptional()
   @IsString()
-  folder?: string = 'INBOX';
+  folder: string = 'INBOX';
 
   @IsOptional()
-  @Type(() => Date)
-  @IsDate()
-  since?: Date;
+  @IsISO8601()
+  @Transform(({ value }) => value ? new Date(value).toISOString() : undefined)
+  since?: string;
 
   @IsOptional()
-  @Type(() => Date)
-  @IsDate()
-  before?: Date;
+  @IsISO8601()
+  @Transform(({ value }) => value ? new Date(value).toISOString() : undefined)
+  before?: string;
 
   @IsOptional()
   @IsString()
@@ -84,40 +91,39 @@ export class GetEmailsDto {
   priority?: string;
 }
 
-export class ProcessEmailDto {
+export class ProcessEmailDto implements ApiProcessEmailDto {
   @IsOptional()
   @IsString()
   templateName?: string;
 }
 
-export class ProcessBatchDto {
-  @IsOptional()
+export class ProcessBatchDto implements ApiProcessBatchDto {
   @Type(() => Number)
   @IsNumber()
   @Min(1)
   @Max(20)
-  limit?: number = 5;
+  limit: number = 5;
 }
 
-export class IngestUserEmailsDto {
-  @IsOptional()
+export class IngestUserEmailsDto implements ApiIngestUserEmailsDto {
   @Type(() => Number)
   @IsNumber()
   @Min(1)
   @Max(50)
-  limit?: number = 5;
+  limit: number = 5;
 
-  @IsOptional()
   @IsString()
-  folder?: string = 'INBOX';
+  folder: string = 'INBOX';
 
   @IsOptional()
-  @Transform(({ value }) => (value ? new Date(value) : undefined))
-  since?: Date;
+  @IsISO8601()
+  @Transform(({ value }) => value ? new Date(value).toISOString() : undefined)
+  since?: string;
 
   @IsOptional()
-  @Transform(({ value }) => (value ? new Date(value) : undefined))
-  before?: Date;
+  @IsISO8601()
+  @Transform(({ value }) => value ? new Date(value).toISOString() : undefined)
+  before?: string;
 }
 
 @Controller('email')
@@ -133,13 +139,13 @@ export class EmailController {
    * Manually trigger email ingestion from Gmail
    */
   @Post('ingest')
-  async ingestEmails(@Body() dto: IngestEmailsDto) {
+  async ingestEmails(@Body() dto: IngestEmailsDto): Promise<ApiEmailIngestionResponse> {
     try {
       const result = await this.emailService.ingestEmails(dto.userId, {
         limit: dto.limit,
         folder: dto.folder,
-        since: dto.since,
-        before: dto.before,
+        since: dto.since ? new Date(dto.since) : undefined,
+        before: dto.before ? new Date(dto.before) : undefined,
         templateName: dto.templateName,
       });
       return {
@@ -161,16 +167,16 @@ export class EmailController {
   @Post('ingest/:userId')
   async ingestUserEmails(
     @Param('userId') userId: string,
-    @Body() dto: IngestUserEmailsDto = {}
-  ) {
+    @Body() dto: IngestUserEmailsDto = { limit: 5, folder: 'INBOX' }
+  ): Promise<ApiEmailIngestionResponse> {
     try {
       const result = await this.emailIngestionService.ingestAndProcessEmails(
         userId,
-        dto.limit || 5,
+        dto.limit,
         {
           folder: dto.folder,
-          since: dto.since,
-          before: dto.before,
+          since: dto.since ? new Date(dto.since) : undefined,
+          before: dto.before ? new Date(dto.before) : undefined,
         }
       );
       return {
@@ -190,7 +196,9 @@ export class EmailController {
    * Get processing status for a user
    */
   @Get('status/:userId')
-  async getProcessingStatus(@Param('userId') userId: string) {
+  async getProcessingStatus(
+    @Param('userId') userId: string
+  ): Promise<ApiProcessingStatusResponse> {
     try {
       return await this.emailIngestionService.getProcessingStatus(userId);
     } catch (error) {

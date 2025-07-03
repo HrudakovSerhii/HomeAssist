@@ -558,6 +558,227 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/email/ingest": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Manually trigger email ingestion */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["IngestEmailsDto"];
+                };
+            };
+            responses: {
+                /** @description Email ingestion completed */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["EmailIngestionResponse"];
+                    };
+                };
+                /** @description Internal server error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/email/ingest/{userId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Ingest and process emails for a specific user */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    userId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["IngestUserEmailsDto"];
+                };
+            };
+            responses: {
+                /** @description Email ingestion completed */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["EmailIngestionResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/email/status/{userId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get processing status for a user */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    userId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Processing status */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProcessingStatusResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/email/{id}/process": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Manually process a specific email */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["ProcessEmailDto"];
+                };
+            };
+            responses: {
+                /** @description Email processed successfully */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** Format: uuid */
+                            emailId?: string;
+                            success?: boolean;
+                            error?: string;
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/email/process/batch": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Process batch of pending emails */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["ProcessBatchDto"];
+                };
+            };
+            responses: {
+                /** @description Batch processing completed */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            success?: boolean;
+                            message?: string;
+                            processed?: number;
+                            failed?: number;
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -844,6 +1065,57 @@ export interface components {
             success: boolean;
             message?: string;
             data: components["schemas"]["EmailAccount"][];
+        };
+        IngestEmailsDto: {
+            /** Format: uuid */
+            userId: string;
+            /** @default 5 */
+            limit: number;
+            /** @default INBOX */
+            folder: string;
+            /** Format: date-time */
+            since?: string;
+            /** Format: date-time */
+            before?: string;
+            templateName?: string;
+        };
+        IngestUserEmailsDto: {
+            /** @default 5 */
+            limit: number;
+            /** @default INBOX */
+            folder: string;
+            /** Format: date-time */
+            since?: string;
+            /** Format: date-time */
+            before?: string;
+        };
+        ProcessEmailDto: {
+            templateName?: string;
+        };
+        ProcessBatchDto: {
+            /** @default 5 */
+            limit: number;
+        };
+        EmailIngestionResponse: {
+            success: boolean;
+            message: string;
+            fetched: number;
+            stored: number;
+            processed: number;
+            failed: number;
+            emails: {
+                /** Format: uuid */
+                id?: string;
+                subject?: string;
+                processed?: boolean;
+                error?: string;
+            }[];
+        };
+        ProcessingStatusResponse: {
+            total: number;
+            processed: number;
+            pending: number;
+            failed: number;
         };
     };
     responses: never;

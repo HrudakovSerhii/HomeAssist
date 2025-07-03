@@ -797,6 +797,142 @@
           }
         },
         "required": ["success", "data"]
+      },
+      "IngestEmailsDto": {
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 50,
+            "default": 5
+          },
+          "folder": {
+            "type": "string",
+            "default": "INBOX"
+          },
+          "since": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "before": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "templateName": {
+            "type": "string"
+          }
+        },
+        "required": ["userId"]
+      },
+      "IngestUserEmailsDto": {
+        "type": "object",
+        "properties": {
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 50,
+            "default": 5
+          },
+          "folder": {
+            "type": "string",
+            "default": "INBOX"
+          },
+          "since": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "before": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ProcessEmailDto": {
+        "type": "object",
+        "properties": {
+          "templateName": {
+            "type": "string"
+          }
+        }
+      },
+      "ProcessBatchDto": {
+        "type": "object",
+        "properties": {
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 20,
+            "default": 5
+          }
+        }
+      },
+      "EmailIngestionResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "message": {
+            "type": "string"
+          },
+          "fetched": {
+            "type": "integer"
+          },
+          "stored": {
+            "type": "integer"
+          },
+          "processed": {
+            "type": "integer"
+          },
+          "failed": {
+            "type": "integer"
+          },
+          "emails": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "subject": {
+                  "type": "string"
+                },
+                "processed": {
+                  "type": "boolean"
+                },
+                "error": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "required": ["success", "message", "fetched", "stored", "processed", "failed", "emails"]
+      },
+      "ProcessingStatusResponse": {
+        "type": "object",
+        "properties": {
+          "total": {
+            "type": "integer"
+          },
+          "processed": {
+            "type": "integer"
+          },
+          "pending": {
+            "type": "integer"
+          },
+          "failed": {
+            "type": "integer"
+          }
+        },
+        "required": ["total", "processed", "pending", "failed"]
       }
     }
   },
@@ -1314,6 +1450,205 @@
           }
         }
       }
+    },
+    "/email/ingest": {
+      "post": {
+        "tags": ["Email"],
+        "summary": "Manually trigger email ingestion",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IngestEmailsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Email ingestion completed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EmailIngestionResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/email/ingest/{userId}": {
+      "post": {
+        "tags": ["Email"],
+        "summary": "Ingest and process emails for a specific user",
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IngestUserEmailsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Email ingestion completed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EmailIngestionResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/email/status/{userId}": {
+      "get": {
+        "tags": ["Email"],
+        "summary": "Get processing status for a user",
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Processing status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProcessingStatusResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/email/{id}/process": {
+      "post": {
+        "tags": ["Email"],
+        "summary": "Manually process a specific email",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProcessEmailDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Email processed successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "emailId": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "error": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/email/process/batch": {
+      "post": {
+        "tags": ["Email"],
+        "summary": "Process batch of pending emails",
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProcessBatchDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Batch processing completed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "processed": {
+                      "type": "integer"
+                    },
+                    "failed": {
+                      "type": "integer"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "tags": [
@@ -1336,6 +1671,10 @@
     {
       "name": "LLM",
       "description": "LLM processing endpoints"
+    },
+    {
+      "name": "Email",
+      "description": "Email processing endpoints"
     }
   ]
 }
