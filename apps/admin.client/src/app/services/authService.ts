@@ -17,7 +17,7 @@ import {
 export const authService = {
   // Authentication methods
   async login(credentials: LoginDto): Promise<AuthResponse> {
-    const response = await apiClient.post<AuthResponse>(
+    const response = await apiClient.post<AuthResponse, LoginDto>(
       API_ENDPOINTS.auth.login,
       credentials
     );
@@ -31,7 +31,7 @@ export const authService = {
   },
 
   async register(userData: CreateUserDto): Promise<RegisterResponse> {
-    return apiClient.post<RegisterResponse>(
+    return apiClient.post<RegisterResponse, CreateUserDto>(
       API_ENDPOINTS.auth.register,
       userData
     );
@@ -60,7 +60,7 @@ export const authService = {
 
   // Account management methods
   async testImapConnection(imapData: TestImapDto): Promise<ImapTestResponse> {
-    return apiClient.post<ImapTestResponse>(
+    return apiClient.post<ImapTestResponse, TestImapDto>(
       API_ENDPOINTS.auth.testImap,
       imapData
     );
@@ -69,7 +69,7 @@ export const authService = {
   async addEmailAccount(
     accountData: AddEmailAccountDto
   ): Promise<AddAccountResponse> {
-    return apiClient.post<AddAccountResponse>(
+    return apiClient.post<AddAccountResponse, AddEmailAccountDto>(
       API_ENDPOINTS.auth.addAccount,
       accountData
     );

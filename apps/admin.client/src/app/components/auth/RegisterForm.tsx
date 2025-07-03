@@ -1,8 +1,9 @@
 import React from 'react';
 import { useAuth, useApi, useForm } from '../../hooks';
 import { FormGroup, InputField, SubmitButton } from '../';
-import { RegisterData } from '../../types';
 import { validationSchemas } from '../../utils';
+
+import type { CreateUserDto, AuthResponse } from '@home-assist/api-types';
 
 interface RegisterFormProps {
   onSuccess: () => void;
@@ -14,7 +15,7 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({
   onError,
 }) => {
   const { register } = useAuth();
-  const { execute, loading } = useApi(register);
+  const { execute, loading } = useApi<AuthResponse>(register);
 
   const form = useForm({
     initialValues: {
@@ -22,7 +23,7 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({
       password: 'Serhii123',
       displayName: 'Serhii',
       email: 'hrudakovserhii@gmail.com',
-    },
+    } as CreateUserDto,
     validationSchema: validationSchemas.register,
   });
 
@@ -32,18 +33,13 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({
     // Clear any previous errors
     onError('');
 
-    // Debug: Log form state before validation
-    console.log('Form values:', form.values);
-    console.log('Form errors before validation:', form.errors);
-
     // Validate using the form's built-in validation
     const isValid = form.validate();
-    console.log('Validation result:', isValid);
-    console.log('Form errors after validation:', form.errors);
 
     if (!isValid) {
       // Display validation errors to user
       const errorMessages = Object.values(form.errors).filter((error) => error);
+
       if (errorMessages.length > 0) {
         onError(`Please fix the following errors: ${errorMessages.join(', ')}`);
       }
@@ -51,14 +47,11 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({
     }
 
     try {
-      debugger;
-      const result = await execute(form.values as RegisterData);
+      const result = await execute(form.values);
 
       if (result?.success) {
-        // Clear form on success
         form.reset();
 
-        // Call success handler
         onSuccess();
       } else {
         onError(result?.message || 'Registration failed. Please try again.');
@@ -119,7 +112,7 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({
           label="Email (Optional)"
           type="email"
           name="email"
-          value={form.values.email}
+          value={form.values.email || ''}
           onChange={(value) => form.setValue('email', value)}
           error={form.errors.email}
           placeholder="your@email.com"

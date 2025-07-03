@@ -1,10 +1,21 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth, useApi } from '../hooks';
-import { PageContainer, LoadingSpinner, Dropdown, AlertMessage } from '../components';
-import { dataService } from '../services';
-import { EmailData, FilterState } from '../types';
+import {
+  PageContainer,
+  LoadingSpinner,
+  Dropdown,
+  AlertMessage,
+} from '../components';
+import { dataService, authService } from '../services';
 import { DashboardFilterOptions } from '../../../constants';
+
+import { EmailData, FilterState } from '../types';
+import {
+  EmailAccount,
+  ExtractedDataResponse,
+  UserAccountsResponse,
+} from '@home-assist/api-types';
 
 const initialFilters: FilterState = {
   search: '',
@@ -24,7 +35,7 @@ const initialFilters: FilterState = {
 const DashboardPage: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  
+
   // State management
   const [filters, setFilters] = useState<FilterState>(initialFilters);
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
@@ -34,10 +45,39 @@ const DashboardPage: React.FC = () => {
   const [totalPages, setTotalPages] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>('');
+  const [userAccounts, setUserAccounts] = useState<EmailAccount[]>([]);
+  const [accountsLoading, setAccountsLoading] = useState(true);
 
   // API hooks
-  const fetchDataApi = useApi(dataService.getExtractedEmailData);
-  const updateActionApi = useApi(dataService.updateActionItem);
+  const fetchDataApi = useApi<ExtractedDataResponse>(
+    dataService.getExtractedEmailData
+  );
+  const updateActionApi = useApi<boolean>(dataService.updateActionItem);
+  const fetchAccountsApi = useApi<UserAccountsResponse>(
+    authService.getAccounts
+  );
+
+  // Fetch user accounts
+  const fetchUserAccounts = useCallback(async () => {
+    if (!user) return;
+
+    try {
+      setAccountsLoading(true);
+      setError('');
+
+      const response = await fetchAccountsApi.execute(user.id);
+
+      if (response && response.success) {
+        setUserAccounts(response.data);
+      } else {
+        setError('Failed to load user accounts. Please try again.');
+      }
+    } catch (err) {
+      setError('Failed to load user accounts. Please try again.');
+    } finally {
+      setAccountsLoading(false);
+    }
+  }, [user, fetchAccountsApi]);
 
   // Convert FilterState to API params
   const getApiParams = useCallback(() => {
@@ -46,7 +86,9 @@ const DashboardPage: React.FC = () => {
       category: filters.category || undefined,
       priority: filters.priority || undefined,
       sentiment: filters.sentiment || undefined,
-      minConfidence: filters.minConfidence ? parseFloat(filters.minConfidence) : undefined,
+      minConfidence: filters.minConfidence
+        ? parseFloat(filters.minConfidence)
+        : undefined,
       entityType: filters.entityType || undefined,
       actionType: filters.actionType || undefined,
       dateFrom: filters.dateFrom || undefined,
@@ -60,6 +102,11 @@ const DashboardPage: React.FC = () => {
 
   // Fetch dashboard data
   const fetchData = useCallback(async () => {
+    // Don't fetch data if accounts are still loading or no accounts available
+    if (accountsLoading || userAccounts.length === 0) {
+      return;
+    }
+
     try {
       setLoading(true);
       setError('');
@@ -78,14 +125,21 @@ const DashboardPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [getApiParams, fetchDataApi]);
+  }, [getApiParams, fetchDataApi, accountsLoading, userAccounts.length]);
 
-  // Initial data load
+  // Initial accounts load
   useEffect(() => {
     if (user) {
+      fetchUserAccounts().finally();
+    }
+  }, [user, fetchUserAccounts]);
+
+  // Fetch email data when accounts are loaded
+  useEffect(() => {
+    if (!accountsLoading && userAccounts.length > 0) {
       fetchData();
     }
-  }, [user, fetchData]);
+  }, [accountsLoading, userAccounts.length, fetchData]);
 
   // Reset page when filters change
   useEffect(() => {
@@ -127,22 +181,28 @@ const DashboardPage: React.FC = () => {
     });
   };
 
-  const handleActionToggle = async (emailId: string, actionIndex: number, isCompleted: boolean) => {
+  const handleActionToggle = async (
+    emailId: string,
+    actionIndex: number,
+    isCompleted: boolean
+  ) => {
     try {
       await updateActionApi.execute(emailId, actionIndex, isCompleted);
-      
+
       // Update local state to reflect the change
-      setEmailData(prev => prev.map(email => {
-        if (email.id === emailId && email.actionItems) {
-          const updatedActionItems = [...email.actionItems];
-          updatedActionItems[actionIndex] = {
-            ...updatedActionItems[actionIndex],
-            isCompleted
-          };
-          return { ...email, actionItems: updatedActionItems };
-        }
-        return email;
-      }));
+      setEmailData((prev) =>
+        prev.map((email) => {
+          if (email.id === emailId && email.actionItems) {
+            const updatedActionItems = [...email.actionItems];
+            updatedActionItems[actionIndex] = {
+              ...updatedActionItems[actionIndex],
+              isCompleted,
+            };
+            return { ...email, actionItems: updatedActionItems };
+          }
+          return email;
+        })
+      );
     } catch (err) {
       setError('Failed to update action item. Please try again.');
       console.error('Action update error:', err);
@@ -194,6 +254,42 @@ const DashboardPage: React.FC = () => {
     return <LoadingSpinner />;
   }
 
+  // Show loading spinner during initial accounts load
+  if (accountsLoading) {
+    return (
+      <PageContainer>
+        <div className="flex justify-center items-center h-64">
+          <LoadingSpinner />
+          <span className="ml-2 text-gray-600">
+            Loading your email accounts...
+          </span>
+        </div>
+      </PageContainer>
+    );
+  }
+
+  // Show message if no accounts are available
+  if (userAccounts.length === 0) {
+    return (
+      <PageContainer>
+        <div className="text-center py-12">
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">
+            No Email Accounts Found
+          </h2>
+          <p className="text-gray-600 mb-6">
+            You need to add at least one email account to view your dashboard.
+          </p>
+          <button
+            onClick={() => navigate('/add-account')}
+            className="bg-primary-600 text-white px-6 py-3 rounded-lg hover:bg-primary-700 transition-colors"
+          >
+            Add Your First Account
+          </button>
+        </div>
+      </PageContainer>
+    );
+  }
+
   return (
     <PageContainer>
       <div className="space-y-6">
@@ -220,11 +316,46 @@ const DashboardPage: React.FC = () => {
           </div>
         </div>
 
+        {/* Accounts Information */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+          <h2 className="text-lg font-semibold text-gray-900 mb-3">
+            Monitoring {userAccounts.length} Email Account
+            {userAccounts.length !== 1 ? 's' : ''}
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {userAccounts.map((account) => (
+              <div
+                key={account.id}
+                className="flex items-center space-x-3 p-3 border border-gray-200 rounded-lg"
+              >
+                <div
+                  className={`w-3 h-3 rounded-full ${
+                    account.isActive && account.isConnected
+                      ? 'bg-green-500'
+                      : 'bg-red-500'
+                  }`}
+                ></div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-900 truncate">
+                    {account.displayName}
+                  </p>
+                  <p className="text-sm text-gray-500 truncate">
+                    {account.email}
+                  </p>
+                </div>
+                <div className="text-xs text-gray-400">
+                  {account.accountType}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
         {/* Error Message */}
         {error && (
-          <AlertMessage 
-            type="error" 
-            message={error} 
+          <AlertMessage
+            type="error"
+            message={error}
             show={true}
             onClose={() => setError('')}
           />
@@ -334,7 +465,9 @@ const DashboardPage: React.FC = () => {
               Clear Filters
             </button>
             <div className="text-sm text-gray-500">
-              {loading ? 'Loading...' : `Showing ${emailData.length} of ${totalItems} results`}
+              {loading
+                ? 'Loading...'
+                : `Showing ${emailData.length} of ${totalItems} results`}
             </div>
           </div>
         </div>
@@ -348,12 +481,13 @@ const DashboardPage: React.FC = () => {
           ) : emailData.length === 0 ? (
             <div className="text-center py-12">
               <div className="text-gray-400 text-6xl mb-4">📭</div>
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No emails found</h3>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">
+                No emails found
+              </h3>
               <p className="text-gray-500">
-                {Object.values(filters).some(v => v) 
+                {Object.values(filters).some((v) => v)
                   ? 'Try adjusting your filters to see more results'
-                  : 'No processed emails are available yet'
-                }
+                  : 'No processed emails are available yet'}
               </p>
             </div>
           ) : (
@@ -428,8 +562,8 @@ const DashboardPage: React.FC = () => {
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center">
                             <div className="flex-1 bg-gray-200 rounded-full h-2 mr-2">
-                              <div 
-                                className="bg-primary-600 h-2 rounded-full" 
+                              <div
+                                className="bg-primary-600 h-2 rounded-full"
                                 style={{ width: `${email.confidence * 100}%` }}
                               ></div>
                             </div>
@@ -452,7 +586,7 @@ const DashboardPage: React.FC = () => {
                           </button>
                         </td>
                       </tr>
-                      
+
                       {/* Expanded Row Content */}
                       {expandedRows.has(email.id) && (
                         <tr>
@@ -487,7 +621,8 @@ const DashboardPage: React.FC = () => {
                                           {entity.entityValue}
                                         </span>
                                         <span className="ml-1 text-blue-600">
-                                          ({Math.round(entity.confidence * 100)}%)
+                                          ({Math.round(entity.confidence * 100)}
+                                          %)
                                         </span>
                                       </span>
                                     ))}
@@ -503,38 +638,48 @@ const DashboardPage: React.FC = () => {
                                       Action Items
                                     </h4>
                                     <div className="space-y-2">
-                                      {email.actionItems.map((action, index) => (
-                                        <div
-                                          key={index}
-                                          className="flex items-center justify-between p-2 bg-white rounded border"
-                                        >
-                                          <div className="flex items-center space-x-2">
-                                            <input
-                                              type="checkbox"
-                                              checked={action.isCompleted}
-                                              onChange={(e) => handleActionToggle(email.id, index, e.target.checked)}
-                                              className="rounded text-primary-600"
-                                              disabled={updateActionApi.loading}
-                                            />
+                                      {email.actionItems.map(
+                                        (action, index) => (
+                                          <div
+                                            key={index}
+                                            className="flex items-center justify-between p-2 bg-white rounded border"
+                                          >
+                                            <div className="flex items-center space-x-2">
+                                              <input
+                                                type="checkbox"
+                                                checked={action.isCompleted}
+                                                onChange={(e) =>
+                                                  handleActionToggle(
+                                                    email.id,
+                                                    index,
+                                                    e.target.checked
+                                                  )
+                                                }
+                                                className="rounded text-primary-600"
+                                                disabled={
+                                                  updateActionApi.loading
+                                                }
+                                              />
+                                              <span
+                                                className={`text-sm ${
+                                                  action.isCompleted
+                                                    ? 'line-through text-gray-500'
+                                                    : 'text-gray-900'
+                                                }`}
+                                              >
+                                                {action.description}
+                                              </span>
+                                            </div>
                                             <span
-                                              className={`text-sm ${
-                                                action.isCompleted
-                                                  ? 'line-through text-gray-500'
-                                                  : 'text-gray-900'
-                                              }`}
+                                              className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getPriorityColor(
+                                                action.priority
+                                              )}`}
                                             >
-                                              {action.description}
+                                              {action.priority}
                                             </span>
                                           </div>
-                                          <span
-                                            className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getPriorityColor(
-                                              action.priority
-                                            )}`}
-                                          >
-                                            {action.priority}
-                                          </span>
-                                        </div>
-                                      ))}
+                                        )
+                                      )}
                                     </div>
                                   </div>
                                 )}
@@ -560,19 +705,21 @@ const DashboardPage: React.FC = () => {
               </div>
               <div className="flex items-center space-x-2">
                 <button
-                  onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                  onClick={() =>
+                    setCurrentPage((prev) => Math.max(1, prev - 1))
+                  }
                   disabled={currentPage === 1 || loading}
                   className="px-3 py-1 text-sm bg-gray-100 text-gray-700 rounded hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Previous
                 </button>
-                
+
                 {/* Page Numbers */}
                 <div className="flex space-x-1">
                   {[...Array(Math.min(5, totalPages))].map((_, index) => {
                     const pageNum = Math.max(1, currentPage - 2) + index;
                     if (pageNum > totalPages) return null;
-                    
+
                     return (
                       <button
                         key={pageNum}
