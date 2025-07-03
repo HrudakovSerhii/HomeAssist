@@ -1009,7 +1009,7 @@
         }
       }
     },
-    "/accounts": {
+    "/auth/accounts": {
       "get": {
         "tags": ["Auth"],
         "summary": "Get user email accounts",

@@ -290,7 +290,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/accounts": {
+    "/auth/accounts": {
         parameters: {
             query?: never;
             header?: never;

@@ -1,7 +1,9 @@
-import { Controller, Post, Body, HttpException, HttpStatus } from '@nestjs/common';
+import { Controller, Post, Get, Body, HttpException, HttpStatus, Query } from '@nestjs/common';
 import { IsString, IsOptional, MinLength } from 'class-validator';
 import { AuthService } from './auth.service';
 import { ImapService } from '../imap/imap.service';
+
+import type { UserAccountsResponse } from '@home-assist/api-types';
 
 class CreateUserDto {
   @IsString()
@@ -126,6 +128,28 @@ export class AuthController {
         success: false,
         message: `IMAP connection test failed: ${error.message}`,
       };
+    }
+  }
+
+  /**
+   * Get user's email accounts
+   */
+  @Get('accounts')
+  async getAccounts(@Query('userId') userId: string): Promise<UserAccountsResponse> {
+    try {
+      if (!userId) {
+        throw new HttpException('User ID is required', HttpStatus.BAD_REQUEST);
+      }
+
+      return await this.authService.getUserAccounts(userId);
+    } catch (error) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      throw new HttpException(
+        'Failed to get user accounts',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 }

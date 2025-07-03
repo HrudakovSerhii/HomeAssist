@@ -3,6 +3,8 @@ import { PrismaService } from '../../common/prisma/prisma.service';
 import { ImapService } from '../imap/imap.service';
 import { EncryptionService } from '../encrypt/encryption.service';
 
+import type { UserAccountsResponse } from '@home-assist/api-types';
+
 import * as bcrypt from 'bcryptjs';
 
 export interface CreateUserDto {
@@ -210,7 +212,7 @@ export class AuthService {
   /**
    * Get user's email accounts
    */
-  async getUserAccounts(userId: string) {
+  async getUserAccounts(userId: string): Promise<UserAccountsResponse> {
     try {
       const accounts = await this.prisma.emailAccount.findMany({
         where: { userId },
@@ -221,17 +223,29 @@ export class AuthService {
           accountType: true,
           isActive: true,
           lastSyncAt: true,
-          lastProcessedAt: true,
-          isCurrentlyProcessing: true,
           createdAt: true,
+          updatedAt: true,
         },
         orderBy: { createdAt: 'asc' },
       });
 
+      // Transform accounts to match OpenAPI schema
+      const transformedAccounts = accounts.map(account => ({
+        id: account.id,
+        email: account.email,
+        displayName: account.displayName || account.email,
+        accountType: account.accountType as 'GMAIL' | 'OUTLOOK' | 'YAHOO' | 'IMAP_GENERIC',
+        isActive: account.isActive,
+        isConnected: account.isActive && account.lastSyncAt !== null,
+        lastSyncAt: account.lastSyncAt?.toISOString() || null,
+        createdAt: account.createdAt.toISOString(),
+        updatedAt: account.updatedAt.toISOString(),
+      }));
+
       return {
         success: true,
-        accounts,
-        count: accounts.length,
+        message: 'User accounts retrieved successfully',
+        data: transformedAccounts,
       };
     } catch (error) {
       this.logger.error('Failed to get user accounts:', error);

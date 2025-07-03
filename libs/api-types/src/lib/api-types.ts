@@ -16,6 +16,8 @@ export type AuthResponse = components['schemas']['AuthResponse'];
 export type AddEmailAccountDto = components['schemas']['AddEmailAccountDto'];
 export type TestImapDto = components['schemas']['TestImapDto'];
 export type ImapTestResponse = components['schemas']['ImapTestResponse'];
+export type EmailAccount = components['schemas']['EmailAccount'];
+export type UserAccountsResponse = components['schemas']['UserAccountsResponse'];
 
 export type EmailData = components['schemas']['ExtractedEmailData'];
 export type Email = components['schemas']['Email'];
@@ -56,6 +58,8 @@ export type RegisterResponse = paths['/auth/register']['post']['responses']['201
 
 export type AddAccountRequest = paths['/auth/add-account']['post']['requestBody']['content']['application/json'];
 export type TestImapRequest = paths['/auth/test-imap']['post']['requestBody']['content']['application/json'];
+
+export type GetAccountsResponse = paths['/auth/accounts']['get']['responses']['200']['content']['application/json'];
 
 export type UpdateActionRequest = paths['/data/emails/{emailId}/actions/{actionIndex}']['patch']['requestBody']['content']['application/json'];
 
