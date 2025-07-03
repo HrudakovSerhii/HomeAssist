@@ -33,7 +33,7 @@ export class AuthService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly encryptionService: EncryptionService,
-    private readonly imapService: ImapService,
+    private readonly imapService: ImapService
   ) {}
 
   /**
@@ -110,7 +110,10 @@ export class AuthService {
       }
 
       // Verify password
-      const isValidPassword = await bcrypt.compare(loginDto.password, user.password);
+      const isValidPassword = await bcrypt.compare(
+        loginDto.password,
+        user.password
+      );
 
       if (!isValidPassword) {
         throw new HttpException('Invalid credentials', HttpStatus.UNAUTHORIZED);
@@ -126,10 +129,12 @@ export class AuthService {
       const { password, ...userWithoutPassword } = user;
 
       // Check if user has any active email accounts
-      const hasActiveAccounts = user.accounts.some(account => account.isActive);
+      const hasActiveAccounts = user.accounts.some(
+        (account) => account.isActive
+      );
 
       this.logger.log(
-        `User logged in: ${user.username} (${hasActiveAccounts} active email accounts)`,
+        `User logged in: ${user.username} (${hasActiveAccounts} active email accounts)`
       );
 
       return {
@@ -155,26 +160,30 @@ export class AuthService {
       });
 
       if (existingAccount) {
-        throw new HttpException('Email account already exists', HttpStatus.CONFLICT);
+        throw new HttpException(
+          'Email account already exists',
+          HttpStatus.CONFLICT
+        );
       }
 
       // Test IMAP connection before storing
-      const connectionTest = await this.imapService.testConnectionWithCredentials(
-        addAccountDto.email,
-        addAccountDto.appPassword,
-        addAccountDto.accountType || 'GMAIL',
-      );
+      const connectionTest =
+        await this.imapService.testConnectionWithCredentials(
+          addAccountDto.email,
+          addAccountDto.appPassword,
+          addAccountDto.accountType || 'GMAIL'
+        );
 
       if (!connectionTest.success) {
         throw new HttpException(
           `IMAP connection test failed: ${connectionTest.message}`,
-          HttpStatus.BAD_REQUEST,
+          HttpStatus.BAD_REQUEST
         );
       }
 
       // Encrypt the app password before storing
       const encryptedPassword = await this.encryptionService.encryptPassword(
-        addAccountDto.appPassword,
+        addAccountDto.appPassword
       );
 
       const account = await this.prisma.emailAccount.create({
@@ -188,7 +197,7 @@ export class AuthService {
       });
 
       this.logger.log(
-        `Added email account: ${addAccountDto.email} for user ${userId} (IMAP tested successfully)`,
+        `Added email account: ${addAccountDto.email} for user ${userId} (IMAP tested successfully)`
       );
 
       return {
@@ -230,11 +239,15 @@ export class AuthService {
       });
 
       // Transform accounts to match OpenAPI schema
-      const transformedAccounts = accounts.map(account => ({
+      const transformedAccounts = accounts.map((account) => ({
         id: account.id,
         email: account.email,
         displayName: account.displayName || account.email,
-        accountType: account.accountType as 'GMAIL' | 'OUTLOOK' | 'YAHOO' | 'IMAP_GENERIC',
+        accountType: account.accountType as
+          | 'GMAIL'
+          | 'OUTLOOK'
+          | 'YAHOO'
+          | 'IMAP_GENERIC',
         isActive: account.isActive,
         isConnected: account.isActive && account.lastSyncAt !== null,
         lastSyncAt: account.lastSyncAt?.toISOString() || null,
@@ -292,7 +305,10 @@ export class AuthService {
       });
 
       if (!account) {
-        throw new HttpException('Email account not found', HttpStatus.NOT_FOUND);
+        throw new HttpException(
+          'Email account not found',
+          HttpStatus.NOT_FOUND
+        );
       }
 
       await this.prisma.emailAccount.update({

@@ -7,6 +7,7 @@ import React, {
 } from 'react';
 import {
   AddEmailAccountDto,
+  AddAccountResponse,
   AuthResponse,
   CreateUserDto,
   LoginDto,
@@ -16,13 +17,6 @@ import {
 import { authService } from '../services';
 import { STORAGE_KEYS } from '../utils';
 
-type AddAccountResponse = {
-  id: string;
-  email: string;
-  accountType: string;
-  isActive: boolean;
-};
-
 interface AuthContextType {
   user: User | null;
   loading: boolean;
@@ -31,7 +25,9 @@ interface AuthContextType {
   register: (userData: CreateUserDto) => Promise<RegisterResponse>;
   logout: () => Promise<void>;
   checkAuth: () => Promise<void>;
-  addEmailAccount: (accountData: AddEmailAccountDto) => Promise<AddAccountResponse>;
+  addEmailAccount: (
+    accountData: AddEmailAccountDto
+  ) => Promise<AddAccountResponse>;
   refreshUser: () => Promise<void>;
 }
 
@@ -91,9 +87,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-  const login = async (
-    credentials: LoginDto
-  ): Promise<AuthResponse> => {
+  const login = async (credentials: LoginDto): Promise<AuthResponse> => {
     setLoading(true);
 
     try {

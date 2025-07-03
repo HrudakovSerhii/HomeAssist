@@ -3,7 +3,12 @@ import { useNavigate } from 'react-router-dom';
 import { useApi, useAuth } from '../hooks';
 import { authService } from '../services';
 import { ACCOUNT_TYPES } from '../../../constants';
-import { AccountData, ImapTestData, ImapTestResponse } from '../types';
+import {
+  AddEmailAccountDto,
+  AddAccountResponse,
+  TestImapDto,
+  ImapTestResponse,
+} from '@home-assist/api-types';
 
 import {
   AlertMessage,
@@ -15,10 +20,17 @@ import {
   SelectField,
 } from '../components';
 
+import { APP_ENDPOINTS } from '../../configuration';
+
+type AddEmailAccountFormData = Required<AddEmailAccountDto>;
+
 export const AddAccountPage: React.FC = () => {
   const navigate = useNavigate();
+
   const { user, addEmailAccount } = useAuth();
-  const [formData, setFormData] = useState<AccountData>({
+  const useAddEmailAccount = useApi<AddAccountResponse>(addEmailAccount);
+
+  const [formData, setFormData] = useState<AddEmailAccountFormData>({
     email: '',
     appPassword: '',
     displayName: '',
@@ -44,7 +56,7 @@ export const AddAccountPage: React.FC = () => {
   }, [user, navigate]);
 
   const handleInputChange = (name: string, value: string) => {
-    setFormData((prev: AccountData) => ({
+    setFormData((prev: AddEmailAccountFormData) => ({
       ...prev,
       [name]: value,
     }));
@@ -53,7 +65,7 @@ export const AddAccountPage: React.FC = () => {
   const handleTestConnection = async () => {
     setCurrentStep('testing');
 
-    const testData: ImapTestData = {
+    const testData: TestImapDto = {
       email: formData.email,
       appPassword: formData.appPassword,
     };
@@ -66,16 +78,16 @@ export const AddAccountPage: React.FC = () => {
 
     setCurrentStep('adding');
 
-    const accountData: AccountData = {
+    const accountData: AddEmailAccountDto = {
       ...formData,
       displayName: formData.displayName || formData.email,
       userId: user.id,
     };
 
     try {
-      const result = await addEmailAccount(accountData);
+      const result = await useAddEmailAccount.execute(accountData);
 
-      if (result.success) {
+      if (result?.success) {
         setCurrentStep('success');
         setSuccessMessage(
           `Email account "${formData.email}" added successfully!`
@@ -97,7 +109,7 @@ export const AddAccountPage: React.FC = () => {
               'Email account added successfully! Would you like to go to the dashboard to start processing emails?'
             )
           ) {
-            navigate('/dashboard');
+            navigate(APP_ENDPOINTS.dashboard);
           } else {
             setCurrentStep('form');
             setSuccessMessage(null);
@@ -117,7 +129,7 @@ export const AddAccountPage: React.FC = () => {
     e.preventDefault();
 
     if (!user) {
-      navigate('/login');
+      navigate(APP_ENDPOINTS.login);
       return;
     }
 
@@ -132,17 +144,18 @@ export const AddAccountPage: React.FC = () => {
     }
   }, [testConnectionApi.data, currentStep]);
 
-  const getActiveAccountsInfo = () => {
-    if (!user?.accounts) return 'No email accounts connected yet';
-
-    const activeAccounts = user.accounts.filter((acc) => acc.isActive);
-    const count = activeAccounts.length;
-
-    if (count === 0) return 'No email accounts connected yet';
-
-    const accountsList = activeAccounts.map((acc) => acc.email).join(', ');
-    return `${count} email account(s) connected • ${accountsList}`;
-  };
+  // Commented before getAccount APi implemented
+  // const getActiveAccountsInfo = () => {
+  //   if (!user?.accounts) return 'No email accounts connected yet';
+  //
+  //   const activeAccounts = user.accounts.filter((acc) => acc.isActive);
+  //   const count = activeAccounts.length;
+  //
+  //   if (count === 0) return 'No email accounts connected yet';
+  //
+  //   const accountsList = activeAccounts.map((acc) => acc.email).join(', ');
+  //   return `${count} email account(s) connected • ${accountsList}`;
+  // };
 
   const getCurrentError = () => {
     if (currentStep === 'testing' && testConnectionApi.error) {
@@ -198,7 +211,7 @@ export const AddAccountPage: React.FC = () => {
           <h3 className="text-lg font-semibold text-slate-800 mb-2">
             {user.displayName || user.username}
           </h3>
-          <p className="text-slate-600 text-sm">{getActiveAccountsInfo()}</p>
+          {/*<p className="text-slate-600 text-sm">{getActiveAccountsInfo()}</p>*/}
         </div>
 
         {/* Messages */}
@@ -314,8 +327,9 @@ export const AddAccountPage: React.FC = () => {
             variant="outline"
             size="md"
             onClick={() => {
-              authService.logout();
-              navigate('/login');
+              authService.logout().finally(() => {
+                navigate(APP_ENDPOINTS.login);
+              });
             }}
             disabled={isLoading}
           >

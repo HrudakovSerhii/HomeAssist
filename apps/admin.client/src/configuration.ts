@@ -9,6 +9,7 @@ export const API_ENDPOINTS = {
     register: '/auth/register',
     testImap: '/auth/test-imap',
     addAccount: '/auth/add-account',
+    accounts: '/auth/accounts',
     // Note: logout and refresh are not implemented in backend yet
   },
   data: {

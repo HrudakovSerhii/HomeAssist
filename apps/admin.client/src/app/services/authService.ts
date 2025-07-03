@@ -10,6 +10,8 @@ import {
   TestImapDto,
   ImapTestResponse,
   User,
+  UserAccountsResponse,
+  AddAccountResponse,
 } from '@home-assist/api-types';
 
 export const authService = {
@@ -64,24 +66,18 @@ export const authService = {
     );
   },
 
-  async addEmailAccount(accountData: AddEmailAccountDto): Promise<{
-    id: string;
-    email: string;
-    accountType: string;
-    isActive: boolean;
-  }> {
-    return apiClient.post<{
-      id: string;
-      email: string;
-      accountType: string;
-      isActive: boolean;
-    }>(API_ENDPOINTS.auth.addAccount, accountData);
+  async addEmailAccount(
+    accountData: AddEmailAccountDto
+  ): Promise<AddAccountResponse> {
+    return apiClient.post<AddAccountResponse>(
+      API_ENDPOINTS.auth.addAccount,
+      accountData
+    );
   },
 
-  // Note: Account management endpoints not implemented in backend yet
-  async getAccounts(): Promise<{ success: boolean; accounts: any[] }> {
-    throw new Error(
-      'Account management endpoints not implemented in backend yet'
+  async getAccounts(userId: string): Promise<UserAccountsResponse> {
+    return apiClient.get<UserAccountsResponse>(
+      `${API_ENDPOINTS.auth.accounts}?userId=${userId}`
     );
   },
 

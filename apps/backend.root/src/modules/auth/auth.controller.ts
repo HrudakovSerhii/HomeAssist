@@ -1,4 +1,12 @@
-import { Controller, Post, Get, Body, HttpException, HttpStatus, Query } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Get,
+  Body,
+  HttpException,
+  HttpStatus,
+  Query,
+} from '@nestjs/common';
 import { IsString, IsOptional, MinLength } from 'class-validator';
 import { AuthService } from './auth.service';
 import { ImapService } from '../imap/imap.service';
@@ -52,7 +60,7 @@ class AddEmailAccountDto {
 export class AuthController {
   constructor(
     private readonly authService: AuthService,
-    private readonly imapService: ImapService,
+    private readonly imapService: ImapService
   ) {}
 
   /**
@@ -68,7 +76,7 @@ export class AuthController {
       }
       throw new HttpException(
         'Registration failed',
-        HttpStatus.INTERNAL_SERVER_ERROR,
+        HttpStatus.INTERNAL_SERVER_ERROR
       );
     }
   }
@@ -84,10 +92,7 @@ export class AuthController {
       if (error instanceof HttpException) {
         throw error;
       }
-      throw new HttpException(
-        'Login failed',
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
+      throw new HttpException('Login failed', HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
 
@@ -99,7 +104,7 @@ export class AuthController {
     try {
       return await this.authService.addEmailAccount(
         addAccountDto.userId,
-        addAccountDto,
+        addAccountDto
       );
     } catch (error) {
       if (error instanceof HttpException) {
@@ -107,7 +112,7 @@ export class AuthController {
       }
       throw new HttpException(
         'Failed to add email account',
-        HttpStatus.INTERNAL_SERVER_ERROR,
+        HttpStatus.INTERNAL_SERVER_ERROR
       );
     }
   }
@@ -116,12 +121,19 @@ export class AuthController {
    * Test IMAP connection to Gmail
    */
   @Post('test-imap')
-  async testImap(@Body() testDto: { email: string; appPassword: string; accountType?: string }) {
+  async testImap(
+    @Body()
+    testDto: {
+      email: string;
+      appPassword: string;
+      accountType?: string;
+    }
+  ) {
     try {
       return await this.imapService.testConnectionWithCredentials(
         testDto.email,
         testDto.appPassword,
-        testDto.accountType || 'GMAIL',
+        testDto.accountType || 'GMAIL'
       );
     } catch (error) {
       return {
@@ -135,7 +147,9 @@ export class AuthController {
    * Get user's email accounts
    */
   @Get('accounts')
-  async getAccounts(@Query('userId') userId: string): Promise<UserAccountsResponse> {
+  async getAccounts(
+    @Query('userId') userId: string
+  ): Promise<UserAccountsResponse> {
     try {
       if (!userId) {
         throw new HttpException('User ID is required', HttpStatus.BAD_REQUEST);
@@ -148,7 +162,7 @@ export class AuthController {
       }
       throw new HttpException(
         'Failed to get user accounts',
-        HttpStatus.INTERNAL_SERVER_ERROR,
+        HttpStatus.INTERNAL_SERVER_ERROR
       );
     }
   }
