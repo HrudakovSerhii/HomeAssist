@@ -2,7 +2,7 @@ import { ErrorResponse } from '@home-assist/api-types';
 import { API_PREFIX } from '../../configuration';
 
 class ApiClient {
-  private baseURL = API_PREFIX;
+  private baseURL = `/${API_PREFIX}`;
   private token: string | null = null;
 
   constructor() {

@@ -3,28 +3,15 @@ import { PrismaService } from '../../common/prisma/prisma.service';
 import { ImapService } from '../imap/imap.service';
 import { EncryptionService } from '../encrypt/encryption.service';
 
-import type { UserAccountsResponse } from '@home-assist/api-types';
+import type {
+  UserAccountsResponse,
+  CreateUserDto,
+  LoginDto,
+  AddEmailAccountDto,
+  AuthResponse,
+} from '@home-assist/api-types';
 
 import * as bcrypt from 'bcryptjs';
-
-export interface CreateUserDto {
-  username: string;
-  password: string;
-  displayName: string;
-  email?: string;
-}
-
-export interface LoginDto {
-  username: string;
-  password: string;
-}
-
-export interface AddEmailAccountDto {
-  email: string;
-  appPassword: string;
-  displayName?: string;
-  accountType?: 'GMAIL' | 'OUTLOOK' | 'YAHOO' | 'IMAP_GENERIC';
-}
 
 @Injectable()
 export class AuthService {
@@ -82,7 +69,7 @@ export class AuthService {
   /**
    * Authenticate user with username/password
    */
-  async login(loginDto: LoginDto) {
+  async login(loginDto: LoginDto): Promise<AuthResponse> {
     try {
       // Find user
       const user = await this.prisma.user.findUnique({
@@ -109,11 +96,11 @@ export class AuthService {
         throw new HttpException('Account is disabled', HttpStatus.FORBIDDEN);
       }
 
+      // Remove password from response
+      const { password, ...userWithoutPassword } = user;
+
       // Verify password
-      const isValidPassword = await bcrypt.compare(
-        loginDto.password,
-        user.password
-      );
+      const isValidPassword = await bcrypt.compare(loginDto.password, password);
 
       if (!isValidPassword) {
         throw new HttpException('Invalid credentials', HttpStatus.UNAUTHORIZED);
@@ -121,12 +108,9 @@ export class AuthService {
 
       // Update last login
       await this.prisma.user.update({
-        where: { id: user.id },
+        where: { id: userWithoutPassword.id },
         data: { lastLoginAt: new Date() },
       });
-
-      // Remove password from response
-      const { password, ...userWithoutPassword } = user;
 
       // Check if user has any active email accounts
       const hasActiveAccounts = user.accounts.some(
@@ -138,10 +122,28 @@ export class AuthService {
       );
 
       return {
-        hasActiveAccounts,
         success: true,
-        user: userWithoutPassword,
         message: 'Login successful',
+        data: {
+          user: {
+            id: userWithoutPassword.id,
+            username: userWithoutPassword.username,
+            email: userWithoutPassword.email,
+            displayName: userWithoutPassword.displayName,
+            profilePicture: userWithoutPassword.profilePicture,
+            isActive: userWithoutPassword.isActive,
+            createdAt: new Date(
+              userWithoutPassword.createdAt
+            ).toLocaleDateString(),
+            updatedAt: new Date(
+              userWithoutPassword.updatedAt
+            ).toLocaleDateString(),
+            lastLoginAt: new Date(
+              userWithoutPassword.lastLoginAt
+            ).toLocaleDateString(),
+          },
+          hasActiveAccounts,
+        },
       };
     } catch (error) {
       this.logger.error('Login failed:', error);

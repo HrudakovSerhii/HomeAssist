@@ -2,32 +2,25 @@ import { apiClient } from './apiClient';
 import { API_ENDPOINTS } from '../../configuration';
 
 import {
-  LoginDto,
+  AddAccountResponse,
+  AddEmailAccountDto,
   AuthResponse,
   CreateUserDto,
-  RegisterResponse,
-  AddEmailAccountDto,
-  TestImapDto,
   ImapTestResponse,
+  LoginDto,
+  RegisterResponse,
+  TestImapDto,
   User,
   UserAccountsResponse,
-  AddAccountResponse,
 } from '@home-assist/api-types';
 
 export const authService = {
   // Authentication methods
   async login(credentials: LoginDto): Promise<AuthResponse> {
-    const response = await apiClient.post<AuthResponse, LoginDto>(
+    return await apiClient.post<AuthResponse, LoginDto>(
       API_ENDPOINTS.auth.login,
       credentials
     );
-
-    // Store token if login successful
-    if (response.token) {
-      apiClient.setToken(response.token);
-    }
-
-    return response;
   },
 
   async register(userData: CreateUserDto): Promise<RegisterResponse> {
@@ -51,11 +44,6 @@ export const authService = {
       apiClient.setToken(null);
       this.clearSessionData();
     }
-  },
-
-  async refreshToken(): Promise<AuthResponse> {
-    // Note: refresh endpoint not implemented in backend yet
-    throw new Error('Token refresh not implemented in backend yet');
   },
 
   // Account management methods

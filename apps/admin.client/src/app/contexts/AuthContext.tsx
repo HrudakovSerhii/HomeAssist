@@ -93,15 +93,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       const response = await authService.login(credentials);
 
-      if (response.user && response.token) {
-        setUser(response.user);
-        authService.saveUserToSession(response.user);
+      if (response.data.user) {
+        setUser(response.data.user);
+        authService.saveUserToSession(response.data.user);
 
         // Store additional session info
-        if (response.hasActiveAccounts !== undefined) {
+        if (response.data.hasActiveAccounts) {
           sessionStorage.setItem(
             STORAGE_KEYS.HAS_ACTIVE_ACCOUNTS,
-            String(response.hasActiveAccounts)
+            String(response.data.hasActiveAccounts)
           );
         }
       }
@@ -123,17 +123,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       const response = await authService.register(userData);
 
-      if (response.user && response.token) {
-        setUser(response.user);
-        authService.saveUserToSession(response.user);
+      if (response.data.user) {
+        setUser(response.data.user);
 
-        // Store additional session info
-        if (response.hasActiveAccounts !== undefined) {
-          sessionStorage.setItem(
-            STORAGE_KEYS.HAS_ACTIVE_ACCOUNTS,
-            String(response.hasActiveAccounts)
-          );
-        }
+        authService.saveUserToSession(response.data.user);
+
+        sessionStorage.setItem(
+          STORAGE_KEYS.HAS_ACTIVE_ACCOUNTS,
+          String(response.data.hasActiveAccounts)
+        );
       }
 
       return response;

@@ -94,21 +94,19 @@
           "message": {
             "type": "string"
           },
-          "user": {
-            "$ref": "#/components/schemas/User"
-          },
-          "token": {
-            "type": "string"
-          },
-          "expiresAt": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "hasActiveAccounts": {
-            "type": "boolean"
+          "data": {
+            "type": "object",
+            "properties": {
+              "user": {
+                "$ref": "#/components/schemas/User"
+              },
+              "hasActiveAccounts": {
+                "type": "boolean"
+              }
+            }
           }
         },
-        "required": ["success", "user", "hasActiveAccounts"]
+        "required": ["success", "message", "data"]
       },
       "AddEmailAccountDto": {
         "type": "object",
@@ -1338,4 +1336,4 @@
       "description": "LLM processing endpoints"
     }
   ]
-} 
+}

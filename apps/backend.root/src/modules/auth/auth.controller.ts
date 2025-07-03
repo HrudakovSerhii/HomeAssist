@@ -7,13 +7,26 @@ import {
   HttpStatus,
   Query,
 } from '@nestjs/common';
-import { IsString, IsOptional, MinLength } from 'class-validator';
+import {
+  IsString,
+  IsOptional,
+  MinLength,
+  IsEmail,
+  IsEnum,
+} from 'class-validator';
 import { AuthService } from './auth.service';
 import { ImapService } from '../imap/imap.service';
 
-import type { UserAccountsResponse } from '@home-assist/api-types';
+import type {
+  UserAccountsResponse,
+  LoginDto as ApiLoginDto,
+  CreateUserDto as ApiCreateUserDto,
+  AddEmailAccountDto as ApiAddEmailAccountDto,
+  TestImapDto as ApiTestImapDto,
+} from '@home-assist/api-types';
 
-class CreateUserDto {
+// DTO classes with validation decorators that match API types
+class CreateUserDto implements ApiCreateUserDto {
   @IsString()
   username: string;
 
@@ -24,12 +37,12 @@ class CreateUserDto {
   @IsString()
   displayName: string;
 
-  @IsString()
+  @IsEmail()
   @IsOptional()
   email?: string;
 }
 
-class LoginDto {
+class LoginDto implements ApiLoginDto {
   @IsString()
   username: string;
 
@@ -37,11 +50,11 @@ class LoginDto {
   password: string;
 }
 
-class AddEmailAccountDto {
+class AddEmailAccountDto implements ApiAddEmailAccountDto {
   @IsString()
   userId: string;
 
-  @IsString()
+  @IsEmail()
   email: string;
 
   @IsString()
@@ -51,7 +64,19 @@ class AddEmailAccountDto {
   @IsOptional()
   displayName?: string;
 
+  @IsEnum(['GMAIL', 'OUTLOOK', 'YAHOO', 'IMAP_GENERIC'])
+  @IsOptional()
+  accountType?: 'GMAIL' | 'OUTLOOK' | 'YAHOO' | 'IMAP_GENERIC';
+}
+
+class TestImapDto implements ApiTestImapDto {
+  @IsEmail()
+  email: string;
+
   @IsString()
+  appPassword: string;
+
+  @IsEnum(['GMAIL', 'OUTLOOK', 'YAHOO', 'IMAP_GENERIC'])
   @IsOptional()
   accountType?: 'GMAIL' | 'OUTLOOK' | 'YAHOO' | 'IMAP_GENERIC';
 }
@@ -121,14 +146,7 @@ export class AuthController {
    * Test IMAP connection to Gmail
    */
   @Post('test-imap')
-  async testImap(
-    @Body()
-    testDto: {
-      email: string;
-      appPassword: string;
-      accountType?: string;
-    }
-  ) {
+  async testImap(@Body() testDto: TestImapDto) {
     try {
       return await this.imapService.testConnectionWithCredentials(
         testDto.email,
