@@ -30,5 +30,12 @@ export { LoginForm } from './auth/LoginForm';
 export { RegisterForm } from './auth/RegisterForm';
 
 // Types
-export type { User, EmailAccount, DataItem, FilterOptions, PaginationInfo, TableColumn, ApiResponse } from '../types';
+export type {
+  EmailAccount,
+  DataItem,
+  FilterOptions,
+  PaginationInfo,
+  TableColumn,
+  ApiResponse,
+} from '../types';
 export type { DropdownOption } from './ui/Dropdown';

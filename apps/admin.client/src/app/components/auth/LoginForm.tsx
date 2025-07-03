@@ -1,8 +1,9 @@
 import React from 'react';
 import { useAuth, useApi, useForm } from '../../hooks';
 import { FormGroup, InputField, SubmitButton } from '../';
-import { User, LoginCredentials } from '../../types';
+
 import { validationSchemas } from '../../utils';
+import { AuthResponse, User, LoginDto } from '@home-assist/api-types';
 
 interface LoginFormProps {
   onSuccess: (user: User, hasAccounts: boolean) => void;
@@ -11,7 +12,7 @@ interface LoginFormProps {
 
 export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, onError }) => {
   const { login } = useAuth();
-  const { execute, loading } = useApi(login);
+  const { execute, loading } = useApi<AuthResponse>(login);
 
   const form = useForm({
     initialValues: {
@@ -33,17 +34,14 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, onError }) => {
     }
 
     try {
-      const result = await execute(form.values as LoginCredentials);
+      const result = await execute(form.values as LoginDto);
 
       if (result?.success && result.user) {
         // Clear form on success
         form.reset();
 
         // Call success handler
-        onSuccess(
-          result.user,
-          (result.user?.accounts && result.user?.accounts?.length > 0) || false
-        );
+        onSuccess(result.user, result.hasActiveAccounts || false);
       } else {
         onError(result?.message || 'Login failed. Please try again.');
       }

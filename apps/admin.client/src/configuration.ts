@@ -14,7 +14,7 @@ export const API_ENDPOINTS = {
   data: {
     extracted: '/data/extracted',
     filterOptions: '/data/filter-options',
-    updateAction: (emailId: string, actionIndex: number) => 
+    updateAction: (emailId: string, actionIndex: number) =>
       `/data/emails/${emailId}/actions/${actionIndex}`,
   },
   health: '/health',
@@ -22,3 +22,9 @@ export const API_ENDPOINTS = {
     execute: '/llm/execute',
   },
 } as const;
+
+export const APP_ENDPOINTS = {
+  login: '/login',
+  addAccount: '/add-account',
+  dashboard: '/dashboard',
+};

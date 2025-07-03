@@ -1,79 +1,32 @@
-// Authentication Types
-import { IsOptional, IsString } from 'class-validator';
+// Frontend-specific API types that extend or differ from the backend API types
+// For backend API types, import from '@home-assist/api-types'
 
-export interface LoginCredentials {
-  username: string;
-  password: string;
-}
+/* 
+REMOVED REDUNDANT TYPES (now available in @home-assist/api-types):
+- LoginCredentials → Use LoginDto
+- LoginResponse → Use AuthResponse  
+- RegisterData → Use CreateUserDto
+- RegisterResponse → Use AuthResponse
+- AccountData → Use AddEmailAccountDto
+- AddAccountResponse → Use AddAccountResponse
+- ImapTestData → Use TestImapDto
+- ImapTestResponse → Use ImapTestResponse
+- User → Use User
 
-export interface LoginResponse {
-  success: boolean;
-  message?: string;
-  user?: User;
-  hasActiveAccounts?: boolean;
-  token?: string;
-}
+Import these from '@home-assist/api-types' instead:
+import { 
+  LoginDto, 
+  AuthResponse, 
+  CreateUserDto, 
+  AddEmailAccountDto, 
+  TestImapDto, 
+  ImapTestResponse,
+  User,
+  // ... other types
+} from '@home-assist/api-types';
+*/
 
-export interface RegisterData {
-  username: string;
-  password: string;
-  displayName: string;
-  email?: string;
-}
-
-export interface RegisterResponse {
-  success: boolean;
-  message?: string;
-  user?: User;
-}
-
-// Account Management Types
-export interface AccountData {
-  email: string;
-  appPassword: string;
-  displayName: string;
-  accountType: 'GMAIL' | 'OUTLOOK' | 'YAHOO' | 'IMAP_GENERIC';
-  userId: string;
-  imapHost?: string;
-  imapPort?: number;
-  useSSL?: boolean;
-}
-
-export interface AddAccountResponse {
-  success: boolean;
-  message?: string;
-  account?: EmailAccount;
-}
-
-export interface ImapTestData {
-  email: string;
-  appPassword: string;
-  imapHost?: string;
-  imapPort?: number;
-  useSSL?: boolean;
-}
-
-export interface ImapTestResponse {
-  success: boolean;
-  message?: string;
-  connectionDetails?: {
-    host: string;
-    port: number;
-    secure: boolean;
-  };
-}
-
-// User and Account Types
-export interface User {
-  id: string;
-  username: string;
-  displayName: string;
-  email?: string;
-  accounts?: EmailAccount[];
-  createdAt?: string;
-  lastLoginAt?: string;
-}
-
+// Extended EmailAccount with frontend-specific fields for UI state management
 export interface EmailAccount {
   id: string;
   email: string;
@@ -81,11 +34,14 @@ export interface EmailAccount {
   accountType: 'GMAIL' | 'OUTLOOK' | 'YAHOO' | 'IMAP_GENERIC';
   isActive: boolean;
   lastSyncAt?: string;
+  // Frontend-specific fields for UI state
   connectionStatus?: 'connected' | 'disconnected' | 'error';
   errorMessage?: string;
 }
 
-// Data and Search Types
+// Legacy types - Consider removing these and using API types directly
+// TODO: Evaluate if these frontend-specific search types are still needed
+
 export interface DataSearchRequest {
   query?: string;
   category?: string;
@@ -125,7 +81,8 @@ export interface DataItem {
   extractedData?: Record<string, any>;
 }
 
-// Generic API Response
+// DEPRECATED: All API responses now have consistent structure from '@home-assist/api-types'
+// Use specific response types like AuthResponse, ExtractedDataResponse, etc. instead
 export interface ApiResponse<T = any> {
   success: boolean;
   data?: T;
@@ -134,7 +91,7 @@ export interface ApiResponse<T = any> {
   errors?: Record<string, string>;
 }
 
-// Error Types
+// DEPRECATED: Use ErrorResponse from '@home-assist/api-types' instead
 export interface ApiError {
   message: string;
   status?: number;

@@ -1,20 +1,11 @@
 // Re-export API types
-export type { 
-  User, 
-  EmailAccount, 
+export type {
+  EmailAccount,
   DataItem,
-  LoginCredentials,
-  LoginResponse,
-  RegisterData,
-  RegisterResponse,
-  AccountData,
-  AddAccountResponse,
-  ImapTestData,
-  ImapTestResponse,
   DataSearchRequest,
   DataSearchResponse,
   ApiResponse,
-  ApiError
+  ApiError,
 } from './api';
 
 export * from './dashboard';
@@ -43,5 +34,3 @@ export interface TableColumn {
   sortable?: boolean;
   width?: string;
 }
-
- 

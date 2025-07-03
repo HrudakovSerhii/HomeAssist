@@ -8,6 +8,8 @@ import { PageLoader } from './components';
 import LoginPage from './pages/LoginPage';
 import AddAccountPage from './pages/AddAccountPage';
 
+import { APP_ENDPOINTS } from '../configuration';
+
 // Lazy load dashboard for better performance
 const DashboardPage = React.lazy(() => import('./pages/DashboardPage'));
 
@@ -17,7 +19,7 @@ export const AppRouter: React.FC = () => {
       <Routes>
         {/* Public Routes */}
         <Route
-          path="/login"
+          path={APP_ENDPOINTS.login}
           element={
             <PublicRoute>
               <LoginPage />
@@ -26,13 +28,16 @@ export const AppRouter: React.FC = () => {
         />
 
         {/* Root redirect */}
-        <Route path="/" element={<Navigate to="/login" replace />} />
+        <Route
+          path="/"
+          element={<Navigate to={APP_ENDPOINTS.login} replace />}
+        />
 
         {/* Protected Routes */}
         <Route
-          path="/dashboard"
+          path={APP_ENDPOINTS.dashboard}
           element={
-            <ProtectedRoute requiresAccounts={true}>
+            <ProtectedRoute>
               <Suspense
                 fallback={<PageLoader message="Loading dashboard..." />}
               >
@@ -43,7 +48,7 @@ export const AppRouter: React.FC = () => {
         />
 
         <Route
-          path="/add-account"
+          path={APP_ENDPOINTS.addAccount}
           element={
             <ProtectedRoute>
               <AddAccountPage />
