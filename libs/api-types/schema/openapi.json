@@ -97,9 +97,12 @@
           "expiresAt": {
             "type": "string",
             "format": "date-time"
+          },
+          "hasActiveAccounts": {
+            "type": "boolean"
           }
         },
-        "required": ["user", "token", "expiresAt"]
+        "required": ["user", "token", "expiresAt", "hasActiveAccounts"]
       },
       "AddEmailAccountDto": {
         "type": "object",

@@ -1,4 +1,4 @@
-# @homeassist/api-types
+# @home-assist/api-types
 
 **Shared TypeScript types for HomeAssist API** - Generated from OpenAPI schema as the source of truth.
 
@@ -12,7 +12,7 @@ The library is automatically available in the NX workspace:
 
 ```bash
 # Import in your code
-import { EmailData, User, AuthResponse } from '@homeassist/api-types';
+import { EmailData, User, AuthResponse } from '@home-assist/api-types';
 ```
 
 ## 🔧 Usage
@@ -29,7 +29,7 @@ import {
   EmailCategory,
   Priority,
   Sentiment 
-} from '@homeassist/api-types';
+} from '@home-assist/api-types';
 
 // Use in your components/services
 function processEmailData(data: EmailData): void {
@@ -48,7 +48,7 @@ import {
   LoginResponse,
   GetExtractedDataParams,
   GetExtractedDataResponse 
-} from '@homeassist/api-types';
+} from '@home-assist/api-types';
 
 // Login functionality
 const loginData: LoginRequest = {
@@ -70,7 +70,7 @@ const params: GetExtractedDataParams = {
 ### Enum Types
 
 ```typescript
-import { EmailCategory, Priority, Sentiment } from '@homeassist/api-types';
+import { EmailCategory, Priority, Sentiment } from '@home-assist/api-types';
 
 // Use for dropdowns, filters, etc.
 const categories: EmailCategory[] = ['WORK', 'PERSONAL', 'FINANCE'];
@@ -81,7 +81,7 @@ const sentiments: Sentiment[] = ['POSITIVE', 'NEUTRAL', 'NEGATIVE'];
 ### Advanced Usage
 
 ```typescript
-import { paths, components } from '@homeassist/api-types';
+import { paths, components } from '@home-assist/api-types';
 
 // Extract specific endpoint types
 type GetHealthResponse = paths['/health']['get']['responses']['200']['content']['application/json'];
@@ -139,7 +139,7 @@ libs/api-types/
 
 ```typescript
 // In NestJS controllers
-import { ExtractedDataQueryDto, ExtractedDataResponse } from '@homeassist/api-types';
+import { ExtractedDataQueryDto, ExtractedDataResponse } from '@home-assist/api-types';
 
 @Controller('data')
 export class DataController {
@@ -156,7 +156,7 @@ export class DataController {
 
 ```typescript
 // In React components
-import { EmailData, FilterOptions } from '@homeassist/api-types';
+import { EmailData, FilterOptions } from '@home-assist/api-types';
 
 interface DashboardProps {
   emails: EmailData[];

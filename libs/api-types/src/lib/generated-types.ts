@@ -548,6 +548,7 @@ export interface components {
             token: string;
             /** Format: date-time */
             expiresAt: string;
+            hasActiveAccounts: boolean;
         };
         AddEmailAccountDto: {
             /** Format: uuid */

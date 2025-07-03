@@ -1,11 +1,12 @@
 import { apiClient } from './apiClient';
 import { API_ENDPOINTS } from '../../configuration';
-import { 
-  ExtractedDataResponse, 
-  ExtractedDataQueryDto, 
-  FilterOptions, 
-  UpdateActionItemDto 
-} from '@homeassist/api-types';
+import {
+  ExtractedDataQueryDto,
+  ExtractedDataResponse,
+  FilterOptions,
+  UpdateActionItemDto,
+} from '@home-assist/api-types';
+
 import { DashboardFilterOptions } from '../../../constants';
 
 class DataService {
@@ -25,13 +26,11 @@ class DataService {
         }
       });
 
-      const endpoint = queryParams.toString() 
+      const endpoint = queryParams.toString()
         ? `${API_ENDPOINTS.data.extracted}?${queryParams.toString()}`
         : API_ENDPOINTS.data.extracted;
 
-      const response = await apiClient.get<ExtractedDataResponse>(endpoint);
-
-      return response;
+      return await apiClient.get<ExtractedDataResponse>(endpoint);
     } catch (error) {
       console.error('Error fetching extracted email data:', error);
       // Return empty data structure on error
@@ -47,29 +46,28 @@ class DataService {
    */
   async getFilterOptions(): Promise<FilterOptions> {
     try {
-      const response = await apiClient.get<FilterOptions>(
+      return await apiClient.get<FilterOptions>(
         API_ENDPOINTS.data.filterOptions
       );
-      return response;
     } catch (error) {
       console.error('Error fetching filter options:', error);
       // Return default options from constants on error
       return {
         categories: DashboardFilterOptions.categories.map(
           (option) => option.value
-        ),
+        ) as FilterOptions['categories'],
         priorities: DashboardFilterOptions.priorities.map(
           (option) => option.value
-        ),
+        ) as FilterOptions['priorities'],
         sentiments: DashboardFilterOptions.sentiments.map(
           (option) => option.value
-        ),
+        ) as FilterOptions['sentiments'],
         entityTypes: DashboardFilterOptions.entityTypes.map(
           (option) => option.value
-        ),
+        ) as FilterOptions['entityTypes'],
         actionTypes: DashboardFilterOptions.actionTypes.map(
           (option) => option.value
-        ),
+        ) as FilterOptions['actionTypes'],
       };
     }
   }
@@ -85,7 +83,7 @@ class DataService {
     try {
       const updateData: UpdateActionItemDto = { isCompleted };
       const endpoint = API_ENDPOINTS.data.updateAction(emailId, actionIndex);
-      
+
       await apiClient.patch(endpoint, updateData);
       return true;
     } catch (error) {
@@ -113,7 +111,7 @@ class DataService {
 
   /**
    * Get dashboard statistics
-   * Note: Stats endpoint not implemented in backend yet  
+   * Note: Stats endpoint not implemented in backend yet
    */
   async getDashboardStats(): Promise<{
     totalEmails: number;

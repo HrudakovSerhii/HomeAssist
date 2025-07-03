@@ -1,31 +1,37 @@
 import React, {
   createContext,
-  useContext,
-  useState,
-  useEffect,
   ReactNode,
+  useContext,
+  useEffect,
+  useState,
 } from 'react';
 import {
-  User,
-  LoginCredentials,
-  LoginResponse,
-  RegisterData,
+  AddEmailAccountDto,
+  AuthResponse,
+  CreateUserDto,
+  LoginDto,
   RegisterResponse,
-  AccountData,
-  AddAccountResponse,
-} from '../types';
+  User,
+} from '@home-assist/api-types';
 import { authService } from '../services';
 import { STORAGE_KEYS } from '../utils';
+
+type AddAccountResponse = {
+  id: string;
+  email: string;
+  accountType: string;
+  isActive: boolean;
+};
 
 interface AuthContextType {
   user: User | null;
   loading: boolean;
   isAuthenticated: boolean;
-  login: (credentials: LoginCredentials) => Promise<LoginResponse>;
-  register: (userData: RegisterData) => Promise<RegisterResponse>;
+  login: (credentials: LoginDto) => Promise<AuthResponse>;
+  register: (userData: CreateUserDto) => Promise<RegisterResponse>;
   logout: () => Promise<void>;
   checkAuth: () => Promise<void>;
-  addEmailAccount: (accountData: AccountData) => Promise<AddAccountResponse>;
+  addEmailAccount: (accountData: AddEmailAccountDto) => Promise<AddAccountResponse>;
   refreshUser: () => Promise<void>;
 }
 
@@ -86,14 +92,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   };
 
   const login = async (
-    credentials: LoginCredentials
-  ): Promise<LoginResponse> => {
+    credentials: LoginDto
+  ): Promise<AuthResponse> => {
     setLoading(true);
 
     try {
       const response = await authService.login(credentials);
 
-      if (response.success && response.user) {
+      if (response.user && response.token) {
         setUser(response.user);
         authService.saveUserToSession(response.user);
 
@@ -116,16 +122,24 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   };
 
   const register = async (
-    userData: RegisterData
+    userData: CreateUserDto
   ): Promise<RegisterResponse> => {
     setLoading(true);
 
     try {
       const response = await authService.register(userData);
 
-      if (response.success && response.user) {
+      if (response.user && response.token) {
         setUser(response.user);
         authService.saveUserToSession(response.user);
+
+        // Store additional session info
+        if (response.hasActiveAccounts !== undefined) {
+          sessionStorage.setItem(
+            STORAGE_KEYS.HAS_ACTIVE_ACCOUNTS,
+            String(response.hasActiveAccounts)
+          );
+        }
       }
 
       return response;
@@ -150,22 +164,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   };
 
   const addEmailAccount = async (
-    accountData: AccountData
+    accountData: AddEmailAccountDto
   ): Promise<AddAccountResponse> => {
     try {
-      const response = await authService.addEmailAccount(accountData);
+      // Note: For now, we don't update user data since the response doesn't include full user info
+      // In a real app, you might want to re-fetch user data or the API might return updated user info
 
-      // If account was added successfully, refresh user data
-      if (response.success && response.account && user) {
-        const updatedUser = {
-          ...user,
-          accounts: [...(user.accounts || []), response.account],
-        };
-        setUser(updatedUser);
-        authService.saveUserToSession(updatedUser);
-      }
-
-      return response;
+      return await authService.addEmailAccount(accountData);
     } catch (error) {
       console.error('Add account failed:', error);
       throw error;

@@ -1,4 +1,4 @@
-import { ErrorResponse } from '@homeassist/api-types';
+import { ErrorResponse } from '@home-assist/api-types';
 import { API_PREFIX } from '../../configuration';
 
 class ApiClient {

@@ -3,19 +3,19 @@ import { API_ENDPOINTS } from '../../configuration';
 
 import {
   LoginDto,
-  LoginResponse,
+  AuthResponse,
   CreateUserDto,
   RegisterResponse,
   AddEmailAccountDto,
   TestImapDto,
   ImapTestResponse,
   User,
-} from '@homeassist/api-types';
+} from '@home-assist/api-types';
 
 export const authService = {
   // Authentication methods
-  async login(credentials: LoginDto): Promise<LoginResponse> {
-    const response = await apiClient.post<LoginResponse>(
+  async login(credentials: LoginDto): Promise<AuthResponse> {
+    const response = await apiClient.post<AuthResponse>(
       API_ENDPOINTS.auth.login,
       credentials
     );
@@ -39,7 +39,9 @@ export const authService = {
     try {
       // Note: logout endpoint not implemented in backend yet
       // await apiClient.post('/auth/logout');
-      console.log('Logout endpoint not implemented in backend, clearing local session only');
+      console.log(
+        'Logout endpoint not implemented in backend, clearing local session only'
+      );
     } catch (error) {
       console.warn('Logout request failed:', error);
     } finally {
@@ -49,7 +51,7 @@ export const authService = {
     }
   },
 
-  async refreshToken(): Promise<LoginResponse> {
+  async refreshToken(): Promise<AuthResponse> {
     // Note: refresh endpoint not implemented in backend yet
     throw new Error('Token refresh not implemented in backend yet');
   },
@@ -62,32 +64,33 @@ export const authService = {
     );
   },
 
-  async addEmailAccount(accountData: AddEmailAccountDto): Promise<{ 
-    id: string; 
-    email: string; 
-    accountType: string; 
-    isActive: boolean; 
+  async addEmailAccount(accountData: AddEmailAccountDto): Promise<{
+    id: string;
+    email: string;
+    accountType: string;
+    isActive: boolean;
   }> {
-    return apiClient.post<{ 
-      id: string; 
-      email: string; 
-      accountType: string; 
-      isActive: boolean; 
-    }>(
-      API_ENDPOINTS.auth.addAccount,
-      accountData
-    );
+    return apiClient.post<{
+      id: string;
+      email: string;
+      accountType: string;
+      isActive: boolean;
+    }>(API_ENDPOINTS.auth.addAccount, accountData);
   },
 
   // Note: Account management endpoints not implemented in backend yet
   async getAccounts(): Promise<{ success: boolean; accounts: any[] }> {
-    throw new Error('Account management endpoints not implemented in backend yet');
+    throw new Error(
+      'Account management endpoints not implemented in backend yet'
+    );
   },
 
   async deleteAccount(
     accountId: string
   ): Promise<{ success: boolean; message?: string }> {
-    throw new Error('Account management endpoints not implemented in backend yet');
+    throw new Error(
+      'Account management endpoints not implemented in backend yet'
+    );
   },
 
   // Session management

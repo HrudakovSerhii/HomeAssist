@@ -1,23 +1,23 @@
 import React from 'react';
 
-export interface DropdownOption {
-  value: string;
+export type DropdownOption<T = string> = {
+  value: T;
   label: string;
   disabled?: boolean;
-}
+};
 
-interface DropdownProps {
+export type DropdownProps<T = string> = {
   label: string;
   value: string;
   onChange: (value: string) => void;
-  options: DropdownOption[];
+  options: DropdownOption<T>[];
   placeholder?: string;
   allLabel?: string; // For "All Categories", "All Priorities", etc.
   className?: string;
   disabled?: boolean;
-}
+};
 
-export const Dropdown: React.FC<DropdownProps> = ({
+export const Dropdown = <T = string>({
   label,
   value,
   onChange,
@@ -26,7 +26,7 @@ export const Dropdown: React.FC<DropdownProps> = ({
   allLabel,
   className = '',
   disabled = false,
-}) => {
+}: DropdownProps<T>) => {
   const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     onChange(e.target.value);
   };
@@ -35,7 +35,11 @@ export const Dropdown: React.FC<DropdownProps> = ({
     w-full px-3 py-2 border border-gray-300 rounded-md 
     focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500
     bg-white text-gray-900 text-sm
-    ${disabled ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : 'hover:border-gray-400'}
+    ${
+      disabled
+        ? 'bg-gray-100 text-gray-500 cursor-not-allowed'
+        : 'hover:border-gray-400'
+    }
     ${className}
   `.trim();
 
@@ -51,15 +55,13 @@ export const Dropdown: React.FC<DropdownProps> = ({
         className={selectClasses}
       >
         {/* Default "All" option */}
-        <option value="">
-          {allLabel || placeholder || `All ${label}`}
-        </option>
-        
+        <option value="">{allLabel || placeholder || `All ${label}`}</option>
+
         {/* Dynamic options */}
         {options.map((option) => (
-          <option 
-            key={option.value} 
-            value={option.value}
+          <option
+            key={String(option.value)}
+            value={String(option.value)}
             disabled={option.disabled}
           >
             {option.label}
@@ -68,4 +70,4 @@ export const Dropdown: React.FC<DropdownProps> = ({
       </select>
     </div>
   );
-}; 
+};
