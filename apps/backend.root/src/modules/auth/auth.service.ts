@@ -2,6 +2,7 @@ import { Injectable, Logger, HttpException, HttpStatus } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { ImapService } from '../imap/imap.service';
 import { EncryptionService } from '../encrypt/encryption.service';
+import { randomUUID } from 'crypto';
 
 import type {
   UserAccountsResponse,
@@ -53,12 +54,40 @@ export class AuthService {
       // Remove password from response
       const { password, ...userWithoutPassword } = user;
 
+      // Generate session token
+      const sessionToken = randomUUID();
+      const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours from now
+
+      // Create session record
+      await this.prisma.session.create({
+        data: {
+          userId: userWithoutPassword.id,
+          token: sessionToken,
+          expiresAt,
+          ipAddress: 'unknown', // TODO: Pass from controller
+          userAgent: 'unknown', // TODO: Pass from controller
+        },
+      });
+
       this.logger.log(`Created new user: ${user.username}`);
 
       return {
         success: true,
-        user: userWithoutPassword,
         message: 'User created successfully',
+        user: {
+          id: userWithoutPassword.id,
+          username: userWithoutPassword.username,
+          email: userWithoutPassword.email,
+          displayName: userWithoutPassword.displayName,
+          profilePicture: userWithoutPassword.profilePicture,
+          isActive: userWithoutPassword.isActive,
+          createdAt: userWithoutPassword.createdAt.toISOString(),
+          updatedAt: userWithoutPassword.updatedAt.toISOString(),
+          lastLoginAt: userWithoutPassword.lastLoginAt.toISOString(),
+        },
+        token: sessionToken,
+        expiresAt: expiresAt.toISOString(),
+        hasActiveAccounts: false, // New user has no accounts initially
       };
     } catch (error) {
       this.logger.error('Failed to create user:', error);
@@ -112,6 +141,21 @@ export class AuthService {
         data: { lastLoginAt: new Date() },
       });
 
+      // Generate session token
+      const sessionToken = randomUUID();
+      const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours from now
+
+      // Create session record
+      await this.prisma.session.create({
+        data: {
+          userId: userWithoutPassword.id,
+          token: sessionToken,
+          expiresAt,
+          ipAddress: 'unknown', // TODO: Pass from controller
+          userAgent: 'unknown', // TODO: Pass from controller
+        },
+      });
+
       // Check if user has any active email accounts
       const hasActiveAccounts = user.accounts.some(
         (account) => account.isActive
@@ -124,26 +168,20 @@ export class AuthService {
       return {
         success: true,
         message: 'Login successful',
-        data: {
-          user: {
-            id: userWithoutPassword.id,
-            username: userWithoutPassword.username,
-            email: userWithoutPassword.email,
-            displayName: userWithoutPassword.displayName,
-            profilePicture: userWithoutPassword.profilePicture,
-            isActive: userWithoutPassword.isActive,
-            createdAt: new Date(
-              userWithoutPassword.createdAt
-            ).toLocaleDateString(),
-            updatedAt: new Date(
-              userWithoutPassword.updatedAt
-            ).toLocaleDateString(),
-            lastLoginAt: new Date(
-              userWithoutPassword.lastLoginAt
-            ).toLocaleDateString(),
-          },
-          hasActiveAccounts,
+        user: {
+          id: userWithoutPassword.id,
+          username: userWithoutPassword.username,
+          email: userWithoutPassword.email,
+          displayName: userWithoutPassword.displayName,
+          profilePicture: userWithoutPassword.profilePicture,
+          isActive: userWithoutPassword.isActive,
+          createdAt: userWithoutPassword.createdAt.toISOString(),
+          updatedAt: userWithoutPassword.updatedAt.toISOString(),
+          lastLoginAt: userWithoutPassword.lastLoginAt.toISOString(),
         },
+        token: sessionToken,
+        expiresAt: expiresAt.toISOString(),
+        hasActiveAccounts,
       };
     } catch (error) {
       this.logger.error('Login failed:', error);

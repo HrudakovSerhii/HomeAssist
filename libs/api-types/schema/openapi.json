@@ -94,19 +94,21 @@
           "message": {
             "type": "string"
           },
-          "data": {
-            "type": "object",
-            "properties": {
-              "user": {
-                "$ref": "#/components/schemas/User"
-              },
-              "hasActiveAccounts": {
-                "type": "boolean"
-              }
-            }
+          "user": {
+            "$ref": "#/components/schemas/User"
+          },
+          "token": {
+            "type": "string"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "hasActiveAccounts": {
+            "type": "boolean"
           }
         },
-        "required": ["success", "message", "data"]
+        "required": ["success", "user", "hasActiveAccounts"]
       },
       "AddEmailAccountDto": {
         "type": "object",

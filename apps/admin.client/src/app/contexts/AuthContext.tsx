@@ -14,7 +14,7 @@ import {
   RegisterResponse,
   User,
 } from '@home-assist/api-types';
-import { authService } from '../services';
+import { authService, apiClient } from '../services';
 import { STORAGE_KEYS } from '../utils';
 
 interface AuthContextType {
@@ -93,15 +93,20 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       const response = await authService.login(credentials);
 
-      if (response.data.user) {
-        setUser(response.data.user);
-        authService.saveUserToSession(response.data.user);
+      if (response.user) {
+        setUser(response.user);
+        authService.saveUserToSession(response.user);
+
+        // Store the session token
+        if (response.token) {
+          apiClient.setToken(response.token);
+        }
 
         // Store additional session info
-        if (response.data.hasActiveAccounts) {
+        if (response.hasActiveAccounts) {
           sessionStorage.setItem(
             STORAGE_KEYS.HAS_ACTIVE_ACCOUNTS,
-            String(response.data.hasActiveAccounts)
+            String(response.hasActiveAccounts)
           );
         }
       }
@@ -123,14 +128,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       const response = await authService.register(userData);
 
-      if (response.data.user) {
-        setUser(response.data.user);
+      if (response.user) {
+        setUser(response.user);
+        authService.saveUserToSession(response.user);
 
-        authService.saveUserToSession(response.data.user);
+        // Store the session token
+        if (response.token) {
+          apiClient.setToken(response.token);
+        }
 
         sessionStorage.setItem(
           STORAGE_KEYS.HAS_ACTIVE_ACCOUNTS,
-          String(response.data.hasActiveAccounts)
+          String(response.hasActiveAccounts)
         );
       }
 

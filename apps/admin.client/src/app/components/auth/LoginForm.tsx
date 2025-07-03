@@ -36,12 +36,12 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, onError }) => {
     try {
       const result = await execute(form.values as LoginDto);
 
-      if (result?.success && result.data?.user) {
+      if (result?.success && result.user) {
         // Clear form on success
         form.reset();
 
         // Call success handler
-        onSuccess(result.data.user, result.data.hasActiveAccounts || false);
+        onSuccess(result.user, result.hasActiveAccounts || false);
       } else {
         onError(result?.message || 'Login failed. Please try again.');
       }

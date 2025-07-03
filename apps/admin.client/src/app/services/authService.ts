@@ -84,6 +84,7 @@ export const authService = {
 
   getUserFromSession(): User | null {
     const userData = sessionStorage.getItem('user');
+
     if (userData) {
       try {
         return JSON.parse(userData);
