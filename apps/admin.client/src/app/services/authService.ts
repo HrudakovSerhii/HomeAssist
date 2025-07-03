@@ -2,34 +2,33 @@ import { apiClient } from './apiClient';
 import { API_ENDPOINTS } from '../../configuration';
 
 import {
-  LoginCredentials,
+  LoginDto,
   LoginResponse,
-  RegisterData,
+  CreateUserDto,
   RegisterResponse,
-  AccountData,
-  AddAccountResponse,
-  ImapTestData,
+  AddEmailAccountDto,
+  TestImapDto,
   ImapTestResponse,
   User,
-} from '../types';
+} from '@homeassist/api-types';
 
 export const authService = {
   // Authentication methods
-  async login(credentials: LoginCredentials): Promise<LoginResponse> {
+  async login(credentials: LoginDto): Promise<LoginResponse> {
     const response = await apiClient.post<LoginResponse>(
       API_ENDPOINTS.auth.login,
       credentials
     );
 
     // Store token if login successful
-    if (response.success && response.token) {
+    if (response.token) {
       apiClient.setToken(response.token);
     }
 
     return response;
   },
 
-  async register(userData: RegisterData): Promise<RegisterResponse> {
+  async register(userData: CreateUserDto): Promise<RegisterResponse> {
     return apiClient.post<RegisterResponse>(
       API_ENDPOINTS.auth.register,
       userData
@@ -54,7 +53,7 @@ export const authService = {
       API_ENDPOINTS.auth.refresh
     );
 
-    if (response.success && response.token) {
+    if (response.token) {
       apiClient.setToken(response.token);
     }
 
@@ -62,15 +61,25 @@ export const authService = {
   },
 
   // Account management methods
-  async testImapConnection(imapData: ImapTestData): Promise<ImapTestResponse> {
+  async testImapConnection(imapData: TestImapDto): Promise<ImapTestResponse> {
     return apiClient.post<ImapTestResponse>(
       API_ENDPOINTS.auth.testImap,
       imapData
     );
   },
 
-  async addEmailAccount(accountData: AccountData): Promise<AddAccountResponse> {
-    return apiClient.post<AddAccountResponse>(
+  async addEmailAccount(accountData: AddEmailAccountDto): Promise<{ 
+    id: string; 
+    email: string; 
+    accountType: string; 
+    isActive: boolean; 
+  }> {
+    return apiClient.post<{ 
+      id: string; 
+      email: string; 
+      accountType: string; 
+      isActive: boolean; 
+    }>(
       API_ENDPOINTS.auth.addAccount,
       accountData
     );

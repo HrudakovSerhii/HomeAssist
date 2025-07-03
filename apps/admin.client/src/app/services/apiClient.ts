@@ -1,4 +1,4 @@
-import { ApiError } from '../types';
+import { ErrorResponse } from '@homeassist/api-types';
 import { API_PREFIX } from '../../configuration';
 
 class ApiClient {
@@ -54,10 +54,9 @@ class ApiClient {
       if (!response.ok) {
         throw {
           message: data.message || `HTTP error! status: ${response.status}`,
-          status: response.status,
-          code: data.code,
-          details: data.details,
-        };
+          statusCode: response.status,
+          error: data.error,
+        } as ErrorResponse;
       }
 
       return data;
@@ -66,9 +65,9 @@ class ApiClient {
         // Network error
         throw {
           message: 'Network error. Please check your connection.',
-          status: 0,
-          code: 'NETWORK_ERROR',
-        } as ApiError;
+          statusCode: 0,
+          error: 'NETWORK_ERROR',
+        } as ErrorResponse;
       }
       throw error;
     }

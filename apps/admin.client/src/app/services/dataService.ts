@@ -1,31 +1,19 @@
 import { apiClient } from './apiClient';
-import { FilterState, EmailData, DataResponse } from '../types';
-import type { FilterOptions } from '../types/dashboard';
+import { 
+  ExtractedDataResponse, 
+  ExtractedDataQueryDto, 
+  FilterOptions, 
+  UpdateActionItemDto 
+} from '@homeassist/api-types';
 import { DashboardFilterOptions } from '../../../constants';
-
-export interface DashboardDataParams {
-  search?: string;
-  category?: string;
-  priority?: string;
-  sentiment?: string;
-  minConfidence?: number;
-  entityType?: string;
-  actionType?: string;
-  dateFrom?: string;
-  dateTo?: string;
-  sortBy?: string;
-  sortOrder?: 'asc' | 'desc';
-  page?: number;
-  limit?: number;
-}
 
 class DataService {
   /**
    * Fetch extracted email data with filters and pagination
    */
   async getExtractedEmailData(
-    params: DashboardDataParams
-  ): Promise<DataResponse> {
+    params: ExtractedDataQueryDto
+  ): Promise<ExtractedDataResponse> {
     try {
       const queryParams = new URLSearchParams();
 
@@ -36,7 +24,7 @@ class DataService {
         }
       });
 
-      const response = await apiClient.get<DataResponse>(
+      const response = await apiClient.get<ExtractedDataResponse>(
         `/data/extracted?${queryParams.toString()}`
       );
 
@@ -92,9 +80,8 @@ class DataService {
     isCompleted: boolean
   ): Promise<boolean> {
     try {
-      await apiClient.patch(`/data/emails/${emailId}/actions/${actionIndex}`, {
-        isCompleted,
-      });
+      const updateData: UpdateActionItemDto = { isCompleted };
+      await apiClient.patch(`/data/emails/${emailId}/actions/${actionIndex}`, updateData);
       return true;
     } catch (error) {
       console.error('Error updating action item:', error);
@@ -106,7 +93,7 @@ class DataService {
    * Export data with current filters
    */
   async exportData(
-    params: DashboardDataParams,
+    params: ExtractedDataQueryDto,
     format: 'csv' | 'json' = 'csv'
   ): Promise<Blob> {
     try {
