@@ -1,4 +1,5 @@
 import { apiClient } from './apiClient';
+import { API_ENDPOINTS } from '../../configuration';
 import { 
   ExtractedDataResponse, 
   ExtractedDataQueryDto, 
@@ -24,9 +25,11 @@ class DataService {
         }
       });
 
-      const response = await apiClient.get<ExtractedDataResponse>(
-        `/data/extracted?${queryParams.toString()}`
-      );
+      const endpoint = queryParams.toString() 
+        ? `${API_ENDPOINTS.data.extracted}?${queryParams.toString()}`
+        : API_ENDPOINTS.data.extracted;
+
+      const response = await apiClient.get<ExtractedDataResponse>(endpoint);
 
       return response;
     } catch (error) {
@@ -45,7 +48,7 @@ class DataService {
   async getFilterOptions(): Promise<FilterOptions> {
     try {
       const response = await apiClient.get<FilterOptions>(
-        '/data/filter-options'
+        API_ENDPOINTS.data.filterOptions
       );
       return response;
     } catch (error) {
@@ -81,7 +84,9 @@ class DataService {
   ): Promise<boolean> {
     try {
       const updateData: UpdateActionItemDto = { isCompleted };
-      await apiClient.patch(`/data/emails/${emailId}/actions/${actionIndex}`, updateData);
+      const endpoint = API_ENDPOINTS.data.updateAction(emailId, actionIndex);
+      
+      await apiClient.patch(endpoint, updateData);
       return true;
     } catch (error) {
       console.error('Error updating action item:', error);
@@ -91,38 +96,15 @@ class DataService {
 
   /**
    * Export data with current filters
+   * Note: Export endpoint not implemented in backend yet
    */
   async exportData(
     params: ExtractedDataQueryDto,
     format: 'csv' | 'json' = 'csv'
   ): Promise<Blob> {
     try {
-      const queryParams = new URLSearchParams();
-
-      // Add non-empty parameters to query string
-      Object.entries(params).forEach(([key, value]) => {
-        if (value !== undefined && value !== null && value !== '') {
-          queryParams.append(key, value.toString());
-        }
-      });
-
-      queryParams.append('format', format);
-
-      const response = await fetch(
-        `/api/data/export?${queryParams.toString()}`,
-        {
-          method: 'GET',
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem('token')}`,
-          },
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error('Export failed');
-      }
-
-      return await response.blob();
+      // Note: Export functionality not implemented in backend yet
+      throw new Error('Export functionality not implemented in backend yet');
     } catch (error) {
       console.error('Error exporting data:', error);
       throw error;
@@ -131,6 +113,7 @@ class DataService {
 
   /**
    * Get dashboard statistics
+   * Note: Stats endpoint not implemented in backend yet  
    */
   async getDashboardStats(): Promise<{
     totalEmails: number;
@@ -141,16 +124,8 @@ class DataService {
     priorityCounts: Record<string, number>;
   }> {
     try {
-      const response = await apiClient.get<{
-        totalEmails: number;
-        totalActions: number;
-        completedActions: number;
-        avgConfidence: number;
-        categoryCounts: Record<string, number>;
-        priorityCounts: Record<string, number>;
-      }>('/data/stats');
-
-      return response;
+      // Note: Stats functionality not implemented in backend yet
+      throw new Error('Dashboard stats not implemented in backend yet');
     } catch (error) {
       console.error('Error fetching dashboard stats:', error);
       return {

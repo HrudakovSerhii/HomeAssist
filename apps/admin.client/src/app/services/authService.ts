@@ -37,9 +37,10 @@ export const authService = {
 
   async logout(): Promise<void> {
     try {
-      await apiClient.post(API_ENDPOINTS.auth.logout);
+      // Note: logout endpoint not implemented in backend yet
+      // await apiClient.post('/auth/logout');
+      console.log('Logout endpoint not implemented in backend, clearing local session only');
     } catch (error) {
-      // Even if logout fails on server, clear local token
       console.warn('Logout request failed:', error);
     } finally {
       // Always clear local authentication
@@ -49,15 +50,8 @@ export const authService = {
   },
 
   async refreshToken(): Promise<LoginResponse> {
-    const response = await apiClient.post<LoginResponse>(
-      API_ENDPOINTS.auth.refresh
-    );
-
-    if (response.token) {
-      apiClient.setToken(response.token);
-    }
-
-    return response;
+    // Note: refresh endpoint not implemented in backend yet
+    throw new Error('Token refresh not implemented in backend yet');
   },
 
   // Account management methods
@@ -85,14 +79,15 @@ export const authService = {
     );
   },
 
+  // Note: Account management endpoints not implemented in backend yet
   async getAccounts(): Promise<{ success: boolean; accounts: any[] }> {
-    return apiClient.get(API_ENDPOINTS.accounts.list);
+    throw new Error('Account management endpoints not implemented in backend yet');
   },
 
   async deleteAccount(
     accountId: string
   ): Promise<{ success: boolean; message?: string }> {
-    return apiClient.delete(API_ENDPOINTS.accounts.delete(accountId));
+    throw new Error('Account management endpoints not implemented in backend yet');
   },
 
   // Session management
