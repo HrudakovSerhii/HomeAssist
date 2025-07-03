@@ -15,6 +15,11 @@ import type {
   ExtractedDataResponse,
   UserAccountsResponse,
 } from '@home-assist/api-types';
+import { Button } from '../components/ui/Button';
+import { EmailIngestionProgress, IngestionProgress } from '../components/ui/EmailIngestionProgress';
+import { apiClient } from '../services/apiClient';
+import { useWebSocket } from '../hooks/useWebSocket';
+import { API_ENDPOINTS } from '../../configuration';
 
 const initialFilters: FilterState = {
   search: '',
@@ -43,7 +48,9 @@ const DashboardPage: React.FC = () => {
   const [totalItems, setTotalItems] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string>('');
+  const [error, setError] = useState<string | null>(null);
+  const [isIngesting, setIsIngesting] = useState(false);
+  const [ingestionProgress, setIngestionProgress] = useState<IngestionProgress | null>(null);
 
   // API hooks
   const fetchDataApi = useApi<ExtractedDataResponse>(
@@ -52,6 +59,30 @@ const DashboardPage: React.FC = () => {
   const updateActionApi = useApi<boolean>(dataService.updateActionItem);
   const fetchAccountsApi = useApi<UserAccountsResponse>(
     authService.getAccounts
+  );
+
+  // WebSocket connection for real-time progress updates
+  const { isConnected, sendMessage } = useWebSocket(
+    API_ENDPOINTS.ws.email.ingestion,
+    {
+      onMessage: (data) => {
+        const progress: IngestionProgress = data;
+        setIngestionProgress(progress);
+
+        if (progress.stage === 'COMPLETED' || progress.stage === 'FAILED') {
+          setIsIngesting(false);
+          if (progress.stage === 'FAILED' && progress.error) {
+            setError(progress.error);
+          }
+        }
+      },
+      onError: () => {
+        setError('Lost connection to server. Please try again.');
+        setIsIngesting(false);
+      },
+      // Only connect when actively ingesting
+      autoReconnect: isIngesting,
+    }
   );
 
   // Convert FilterState to API params
@@ -223,6 +254,45 @@ const DashboardPage: React.FC = () => {
         return 'bg-gray-100 text-gray-800';
     }
   };
+
+  const handleIngestEmails = useCallback(async () => {
+    if (!user) return;
+
+    try {
+      setError(null);
+      setIsIngesting(true);
+      setIngestionProgress({
+        stage: 'CONNECTING',
+        emailAccountId: user.id,
+        progress: 0,
+        completedSteps: {
+          fetched: false,
+          stored: false,
+          processed: false,
+        },
+      });
+
+      // Send initial message to WebSocket if connected
+      if (isConnected) {
+        sendMessage({ userId: user.id });
+      }
+
+      await apiClient.post('/email/ingest', {
+        userId: user.id,
+        limit: 5,
+        folder: 'INBOX',
+      });
+    } catch (err) {
+      setError('Failed to start email ingestion. Please try again.');
+      setIsIngesting(false);
+      setIngestionProgress(null);
+    }
+  }, [user, isConnected, sendMessage]);
+
+  const handleCloseProgress = useCallback(() => {
+    setIngestionProgress(null);
+    setError(null);
+  }, []);
 
   if (!user) {
     return <LoadingSpinner />;
@@ -726,6 +796,26 @@ const DashboardPage: React.FC = () => {
             </div>
           </div>
         )}
+
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
+          <Button
+            onClick={handleIngestEmails}
+            disabled={isIngesting || !user}
+            variant="primary"
+            size="md"
+            className="flex items-center space-x-2"
+          >
+            <span>Ingest Emails</span>
+            {isIngesting && <LoadingSpinner size="sm" />}
+          </Button>
+        </div>
+
+        <EmailIngestionProgress
+          isOpen={!!ingestionProgress}
+          onClose={handleCloseProgress}
+          progress={ingestionProgress}
+        />
       </div>
     </PageContainer>
   );
