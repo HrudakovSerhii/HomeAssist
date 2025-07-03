@@ -2,11 +2,11 @@ import { Controller, Get, Query } from '@nestjs/common';
 import { DataPreviewService } from './data-preview.service';
 import { ExtractedDataQueryDto } from './dto/extracted-data-query.dto';
 
-@Controller('data-preview')
+@Controller('data')
 export class DataPreviewController {
   constructor(private readonly dataPreviewService: DataPreviewService) {}
 
-  @Get('extracted-email-data')
+  @Get('extracted')
   async getExtractedEmailData(@Query() queryDto: ExtractedDataQueryDto) {
     return this.dataPreviewService.getExtractedEmailData(queryDto);
   }
@@ -15,4 +15,4 @@ export class DataPreviewController {
   async getFilterOptions() {
     return this.dataPreviewService.getFilterOptions();
   }
-} 
+}

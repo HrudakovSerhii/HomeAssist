@@ -11,8 +11,7 @@ import { dataService, authService } from '../services';
 import { DashboardFilterOptions } from '../../../constants';
 
 import { EmailData, FilterState } from '../types';
-import {
-  EmailAccount,
+import type {
   ExtractedDataResponse,
   UserAccountsResponse,
 } from '@home-assist/api-types';
@@ -45,8 +44,6 @@ const DashboardPage: React.FC = () => {
   const [totalPages, setTotalPages] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>('');
-  const [userAccounts, setUserAccounts] = useState<EmailAccount[]>([]);
-  const [accountsLoading, setAccountsLoading] = useState(true);
 
   // API hooks
   const fetchDataApi = useApi<ExtractedDataResponse>(
@@ -56,28 +53,6 @@ const DashboardPage: React.FC = () => {
   const fetchAccountsApi = useApi<UserAccountsResponse>(
     authService.getAccounts
   );
-
-  // Fetch user accounts
-  const fetchUserAccounts = useCallback(async () => {
-    if (!user) return;
-
-    try {
-      setAccountsLoading(true);
-      setError('');
-
-      const response = await fetchAccountsApi.execute(user.id);
-
-      if (response && response.success) {
-        setUserAccounts(response.data);
-      } else {
-        setError('Failed to load user accounts. Please try again.');
-      }
-    } catch (err) {
-      setError('Failed to load user accounts. Please try again.');
-    } finally {
-      setAccountsLoading(false);
-    }
-  }, [user, fetchAccountsApi]);
 
   // Convert FilterState to API params
   const getApiParams = useCallback(() => {
@@ -102,11 +77,6 @@ const DashboardPage: React.FC = () => {
 
   // Fetch dashboard data
   const fetchData = useCallback(async () => {
-    // Don't fetch data if accounts are still loading or no accounts available
-    if (accountsLoading || userAccounts.length === 0) {
-      return;
-    }
-
     try {
       setLoading(true);
       setError('');
@@ -125,21 +95,25 @@ const DashboardPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [getApiParams, fetchDataApi, accountsLoading, userAccounts.length]);
+  }, [getApiParams, fetchDataApi]);
 
   // Initial accounts load
   useEffect(() => {
-    if (user) {
-      fetchUserAccounts().finally();
+    if (user && !fetchAccountsApi.data) {
+      fetchAccountsApi.execute(user.id).finally();
     }
-  }, [user, fetchUserAccounts]);
+  }, [user]);
 
   // Fetch email data when accounts are loaded
   useEffect(() => {
-    if (!accountsLoading && userAccounts.length > 0) {
-      fetchData();
+    if (
+      !fetchAccountsApi.loading &&
+      fetchAccountsApi.data &&
+      fetchAccountsApi.data.data.length > 0
+    ) {
+      fetchData().finally();
     }
-  }, [accountsLoading, userAccounts.length, fetchData]);
+  }, [fetchAccountsApi.loading]);
 
   // Reset page when filters change
   useEffect(() => {
@@ -255,7 +229,7 @@ const DashboardPage: React.FC = () => {
   }
 
   // Show loading spinner during initial accounts load
-  if (accountsLoading) {
+  if (fetchAccountsApi.loading) {
     return (
       <PageContainer>
         <div className="flex justify-center items-center h-64">
@@ -267,6 +241,8 @@ const DashboardPage: React.FC = () => {
       </PageContainer>
     );
   }
+
+  const userAccounts = fetchAccountsApi.data?.data || [];
 
   // Show message if no accounts are available
   if (userAccounts.length === 0) {
