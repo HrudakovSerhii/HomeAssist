@@ -88,6 +88,12 @@
       "AuthResponse": {
         "type": "object",
         "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "message": {
+            "type": "string"
+          },
           "user": {
             "$ref": "#/components/schemas/User"
           },
@@ -102,7 +108,7 @@
             "type": "boolean"
           }
         },
-        "required": ["user", "token", "expiresAt", "hasActiveAccounts"]
+        "required": ["success", "user", "hasActiveAccounts"]
       },
       "AddEmailAccountDto": {
         "type": "object",
@@ -156,6 +162,42 @@
           }
         },
         "required": ["success", "message"]
+      },
+      "AddAccountResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "message": {
+            "type": "string"
+          },
+          "account": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "email": {
+                "type": "string",
+                "format": "email"
+              },
+              "displayName": {
+                "type": "string"
+              },
+              "accountType": {
+                "type": "string",
+                "enum": ["GMAIL", "OUTLOOK", "YAHOO", "IMAP_GENERIC"]
+              },
+              "isActive": {
+                "type": "boolean"
+              }
+            },
+            "required": ["id", "email", "displayName", "accountType", "isActive"]
+          }
+        },
+        "required": ["success", "message", "account"]
       },
       "EmailCategory": {
         "type": "string",
@@ -460,6 +502,12 @@
       "ExtractedDataResponse": {
         "type": "object",
         "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "message": {
+            "type": "string"
+          },
           "data": {
             "type": "array",
             "items": {
@@ -470,7 +518,7 @@
             "$ref": "#/components/schemas/Pagination"
           }
         },
-        "required": ["data", "pagination"]
+        "required": ["success", "data", "pagination"]
       },
       "FilterOptions": {
         "type": "object",
@@ -508,6 +556,21 @@
         },
         "required": ["categories", "priorities", "sentiments", "entityTypes", "actionTypes"]
       },
+      "FilterOptionsResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/FilterOptions"
+          }
+        },
+        "required": ["success", "data"]
+      },
       "UpdateActionItemDto": {
         "type": "object",
         "properties": {
@@ -517,28 +580,55 @@
         },
         "required": ["isCompleted"]
       },
+      "ActionItemResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/ActionItem"
+          }
+        },
+        "required": ["success", "data"]
+      },
       "HealthResponse": {
         "type": "object",
         "properties": {
-          "status": {
-            "type": "string",
-            "enum": ["ok"]
+          "success": {
+            "type": "boolean"
           },
-          "timestamp": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "environment": {
+          "message": {
             "type": "string"
           },
-          "version": {
-            "type": "string"
-          },
-          "apiPrefix": {
-            "type": "string"
+          "data": {
+            "type": "object",
+            "properties": {
+              "status": {
+                "type": "string",
+                "enum": ["ok"]
+              },
+              "timestamp": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "environment": {
+                "type": "string"
+              },
+              "version": {
+                "type": "string"
+              },
+              "apiPrefix": {
+                "type": "string"
+              }
+            },
+            "required": ["status", "timestamp", "environment", "version", "apiPrefix"]
           }
         },
-        "required": ["status", "timestamp", "environment", "version", "apiPrefix"]
+        "required": ["success", "data"]
       },
       "LLMExecuteDto": {
         "type": "object",
@@ -583,31 +673,57 @@
       "LLMResponse": {
         "type": "object",
         "properties": {
-          "model": {
+          "success": {
+            "type": "boolean"
+          },
+          "message": {
             "type": "string"
           },
-          "createdAt": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "response": {
-            "type": "string"
-          },
-          "raw": {
+          "data": {
             "type": "object",
-            "additionalProperties": true
+            "properties": {
+              "model": {
+                "type": "string"
+              },
+              "createdAt": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "response": {
+                "type": "string"
+              },
+              "raw": {
+                "type": "object",
+                "additionalProperties": true
+              }
+            },
+            "required": ["model", "createdAt", "response", "raw"]
           }
         },
-        "required": ["model", "createdAt", "response", "raw"]
+        "required": ["success", "data"]
       },
       "AppResponse": {
         "type": "object",
         "properties": {
+          "success": {
+            "type": "boolean"
+          },
           "message": {
             "type": "string"
+          },
+          "data": {
+            "type": "object",
+            "properties": {
+              "version": {
+                "type": "string"
+              },
+              "environment": {
+                "type": "string"
+              }
+            }
           }
         },
-        "required": ["message"]
+        "required": ["success", "message"]
       },
       "ErrorResponse": {
         "type": "object",
@@ -623,6 +739,64 @@
           }
         },
         "required": ["statusCode", "message"]
+      },
+      "EmailAccount": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "accountType": {
+            "type": "string",
+            "enum": ["GMAIL", "OUTLOOK", "YAHOO", "IMAP_GENERIC"]
+          },
+          "isActive": {
+            "type": "boolean"
+          },
+          "isConnected": {
+            "type": "boolean"
+          },
+          "lastSyncAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": ["id", "email", "displayName", "accountType", "isActive", "isConnected", "createdAt", "updatedAt"]
+      },
+      "UserAccountsResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EmailAccount"
+            }
+          }
+        },
+        "required": ["success", "data"]
       }
     }
   },
@@ -779,24 +953,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "id": {
-                      "type": "string",
-                      "format": "uuid"
-                    },
-                    "email": {
-                      "type": "string",
-                      "format": "email"
-                    },
-                    "accountType": {
-                      "type": "string",
-                      "enum": ["GMAIL", "OUTLOOK", "YAHOO", "IMAP_GENERIC"]
-                    },
-                    "isActive": {
-                      "type": "boolean"
-                    }
-                  }
+                  "$ref": "#/components/schemas/AddAccountResponse"
                 }
               }
             }
@@ -845,6 +1002,44 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ImapTestResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/accounts": {
+      "get": {
+        "tags": ["Auth"],
+        "summary": "Get user email accounts",
+        "responses": {
+          "200": {
+            "description": "User accounts retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserAccountsResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
@@ -996,7 +1191,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/FilterOptions"
+                  "$ref": "#/components/schemas/FilterOptionsResponse"
                 }
               }
             }
@@ -1044,7 +1239,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ActionItem"
+                  "$ref": "#/components/schemas/ActionItemResponse"
                 }
               }
             }

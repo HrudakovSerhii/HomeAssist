@@ -221,15 +221,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": {
-                            /** Format: uuid */
-                            id?: string;
-                            /** Format: email */
-                            email?: string;
-                            /** @enum {string} */
-                            accountType?: "GMAIL" | "OUTLOOK" | "YAHOO" | "IMAP_GENERIC";
-                            isActive?: boolean;
-                        };
+                        "application/json": components["schemas"]["AddAccountResponse"];
                     };
                 };
                 /** @description Bad request */
@@ -292,6 +284,60 @@ export interface paths {
                 };
             };
         };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/accounts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get user email accounts */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description User accounts retrieved successfully */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["UserAccountsResponse"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Internal server error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -380,7 +426,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["FilterOptions"];
+                        "application/json": components["schemas"]["FilterOptionsResponse"];
                     };
                 };
             };
@@ -429,7 +475,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["ActionItem"];
+                        "application/json": components["schemas"]["ActionItemResponse"];
                     };
                 };
                 /** @description Bad request */
@@ -544,10 +590,12 @@ export interface components {
             password: string;
         };
         AuthResponse: {
+            success: boolean;
+            message?: string;
             user: components["schemas"]["User"];
-            token: string;
+            token?: string;
             /** Format: date-time */
-            expiresAt: string;
+            expiresAt?: string;
             hasActiveAccounts: boolean;
         };
         AddEmailAccountDto: {
@@ -570,6 +618,20 @@ export interface components {
         ImapTestResponse: {
             success: boolean;
             message: string;
+        };
+        AddAccountResponse: {
+            success: boolean;
+            message: string;
+            account: {
+                /** Format: uuid */
+                id: string;
+                /** Format: email */
+                email: string;
+                displayName: string;
+                /** @enum {string} */
+                accountType: "GMAIL" | "OUTLOOK" | "YAHOO" | "IMAP_GENERIC";
+                isActive: boolean;
+            };
         };
         /** @enum {string} */
         EmailCategory: "WORK" | "PERSONAL" | "FINANCE" | "HEALTH" | "BILLS" | "RECEIPTS" | "INVOICES" | "STATEMENTS" | "CONTRACTS" | "OTHER";
@@ -681,6 +743,8 @@ export interface components {
             totalPages: number;
         };
         ExtractedDataResponse: {
+            success: boolean;
+            message?: string;
             data: components["schemas"]["ExtractedEmailData"][];
             pagination: components["schemas"]["Pagination"];
         };
@@ -691,17 +755,31 @@ export interface components {
             entityTypes: components["schemas"]["EntityType"][];
             actionTypes: components["schemas"]["ActionType"][];
         };
+        FilterOptionsResponse: {
+            success: boolean;
+            message?: string;
+            data: components["schemas"]["FilterOptions"];
+        };
         UpdateActionItemDto: {
             isCompleted: boolean;
         };
+        ActionItemResponse: {
+            success: boolean;
+            message?: string;
+            data: components["schemas"]["ActionItem"];
+        };
         HealthResponse: {
-            /** @enum {string} */
-            status: "ok";
-            /** Format: date-time */
-            timestamp: string;
-            environment: string;
-            version: string;
-            apiPrefix: string;
+            success: boolean;
+            message?: string;
+            data: {
+                /** @enum {string} */
+                status: "ok";
+                /** Format: date-time */
+                timestamp: string;
+                environment: string;
+                version: string;
+                apiPrefix: string;
+            };
         };
         LLMExecuteDto: {
             prompt: string;
@@ -720,21 +798,52 @@ export interface components {
             }[];
         };
         LLMResponse: {
-            model: string;
-            /** Format: date-time */
-            createdAt: string;
-            response: string;
-            raw: {
-                [key: string]: unknown;
+            success: boolean;
+            message?: string;
+            data: {
+                model: string;
+                /** Format: date-time */
+                createdAt: string;
+                response: string;
+                raw: {
+                    [key: string]: unknown;
+                };
             };
         };
         AppResponse: {
+            success: boolean;
             message: string;
+            data?: {
+                version?: string;
+                environment?: string;
+            };
         };
         ErrorResponse: {
             statusCode: number;
             message: string;
             error?: string;
+        };
+        EmailAccount: {
+            /** Format: uuid */
+            id: string;
+            /** Format: email */
+            email: string;
+            displayName: string;
+            /** @enum {string} */
+            accountType: "GMAIL" | "OUTLOOK" | "YAHOO" | "IMAP_GENERIC";
+            isActive: boolean;
+            isConnected: boolean;
+            /** Format: date-time */
+            lastSyncAt?: string | null;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        UserAccountsResponse: {
+            success: boolean;
+            message?: string;
+            data: components["schemas"]["EmailAccount"][];
         };
     };
     responses: never;
