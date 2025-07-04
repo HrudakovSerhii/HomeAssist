@@ -27,7 +27,9 @@ export class LLMService {
       throw new HttpException('Ollama URL not configured', 500);
     }
     const url = `${baseUrl.replace(/\/$/, '')}/api/chat`;
+
     console.log(`[LLMService] Using Ollama URL: ${url} (target: ${target}, model: ${model})`);
+    
     const messages = [...(history || []), { role: 'user', content: trimmedPrompt }];
     try {
       const response = await axios.post(url, {

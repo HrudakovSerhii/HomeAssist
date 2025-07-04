@@ -13,6 +13,7 @@ interface UseWebSocketOptions {
   onError?: (error: Error) => void;
   onClose?: () => void;
   autoReconnect?: boolean;
+  autoConnect?: boolean;
   reconnectAttempts?: number;
   reconnectInterval?: number;
 }
@@ -22,6 +23,7 @@ interface UseWebSocketReturn {
   error: string | null;
   sendMessage: (data: any) => void;
   disconnect: () => void;
+  connect: () => void;
 }
 
 export function useWebSocket(
@@ -31,6 +33,7 @@ export function useWebSocket(
     onError,
     onClose,
     autoReconnect = true,
+    autoConnect = true,
     reconnectAttempts = 3,
     reconnectInterval = 5000,
   }: UseWebSocketOptions = {}
@@ -55,7 +58,7 @@ export function useWebSocket(
       
       // Create Socket.IO connection
       const socketInstance = io(`${API_ENDPOINTS.ws.baseUrl}/${namespace}`, {
-        autoConnect: true,
+        autoConnect: autoConnect,
         reconnection: autoReconnect,
         reconnectionAttempts: reconnectAttempts,
         reconnectionDelay: reconnectInterval,
@@ -98,15 +101,18 @@ export function useWebSocket(
     onError,
     onClose,
     autoReconnect,
+    autoConnect,
     reconnectAttempts,
     reconnectInterval,
     cleanup,
   ]);
 
   useEffect(() => {
-    connect();
+    if (autoConnect) {
+      connect();
+    }
     return cleanup;
-  }, [connect, cleanup]);
+  }, [autoConnect, connect, cleanup]);
 
   const sendMessage = useCallback(
     (data: any) => {
@@ -129,5 +135,6 @@ export function useWebSocket(
     error,
     sendMessage,
     disconnect,
+    connect,
   };
 } 

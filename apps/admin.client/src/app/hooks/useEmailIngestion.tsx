@@ -15,6 +15,8 @@ export interface EmailIngestionOptions {
   // WebSocket configuration
   enableWebSocket?: boolean;
   websocketPath?: string;
+  // Connection strategy
+  connectOnMount?: boolean; // New option to control when to connect
   // Callbacks
   onSuccess?: () => void;
   onError?: (error: string) => void;
@@ -33,6 +35,9 @@ export interface EmailIngestionReturn {
   stopIngestion: () => void;
   clearError: () => void;
   clearProgress: () => void;
+  // WebSocket connection control
+  connectWebSocket: () => void;
+  disconnectWebSocket: () => void;
   // For manual WebSocket operations
   sendMessage?: (data: any) => void;
 }
@@ -46,6 +51,7 @@ export function useEmailIngestion(
     folder = 'INBOX',
     enableWebSocket = true,
     websocketPath = API_ENDPOINTS.ws.email.ingestion,
+    connectOnMount = false, // Default to false for lazy connection
     onSuccess,
     onError,
     onProgress,
@@ -59,9 +65,10 @@ export function useEmailIngestion(
   const [isIngesting, setIsIngesting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState<EmailIngestionProgress | null>(null);
+  const [shouldConnect, setShouldConnect] = useState(connectOnMount);
 
-  // WebSocket connection (conditionally enabled)
-  const { isConnected, sendMessage } = useWebSocket(
+  // WebSocket connection (conditionally enabled based on shouldConnect)
+  const { isConnected, sendMessage, disconnect: wsDisconnect, connect: wsConnect } = useWebSocket(
     websocketPath,
     {
       onMessage: (data) => {
@@ -85,10 +92,28 @@ export function useEmailIngestion(
         setIsIngesting(false);
         onError?.(errorMessage);
       },
-      // Only connect when actively ingesting or when explicitly enabled
-      autoReconnect: enableWebSocket && isIngesting,
+      onClose: () => {
+        // Reset connection state when WebSocket closes
+        setShouldConnect(false);
+      },
+      // Only connect when shouldConnect is true
+      autoConnect: enableWebSocket && shouldConnect,
     }
   );
+
+  const connectWebSocket = useCallback(() => {
+    if (enableWebSocket && !isConnected) {
+      setShouldConnect(true);
+      wsConnect();
+    }
+  }, [enableWebSocket, isConnected, wsConnect]);
+
+  const disconnectWebSocket = useCallback(() => {
+    if (shouldConnect) {
+      setShouldConnect(false);
+      wsDisconnect();
+    }
+  }, [shouldConnect, wsDisconnect]);
 
   const startIngestion = useCallback(async () => {
     if (!user) {
@@ -101,6 +126,11 @@ export function useEmailIngestion(
     try {
       setError(null);
       setIsIngesting(true);
+      
+      // Connect WebSocket before starting ingestion if enabled
+      if (enableWebSocket && !isConnected) {
+        connectWebSocket();
+      }
       
       // Set initial progress state
       const initialProgress: EmailIngestionProgress = {
@@ -116,6 +146,11 @@ export function useEmailIngestion(
       
       setProgress(initialProgress);
       onProgress?.(initialProgress);
+
+      // Wait a bit for WebSocket to connect if needed
+      if (enableWebSocket && !isConnected) {
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
 
       // Send initial message to WebSocket if connected and enabled
       if (enableWebSocket && isConnected && sendMessage) {
@@ -142,13 +177,17 @@ export function useEmailIngestion(
       setProgress(null);
       onError?.(errorMessage);
     }
-  }, [user, limit, folder, enableWebSocket, isConnected, sendMessage, onSuccess, onError, onProgress]);
+  }, [user, limit, folder, enableWebSocket, isConnected, connectWebSocket, sendMessage, onSuccess, onError, onProgress]);
 
   const stopIngestion = useCallback(() => {
     setIsIngesting(false);
     setProgress(null);
     setError(null);
-  }, []);
+    // Optionally disconnect WebSocket when stopping
+    if (enableWebSocket) {
+      disconnectWebSocket();
+    }
+  }, [enableWebSocket, disconnectWebSocket]);
 
   const clearError = useCallback(() => {
     setError(null);
@@ -169,6 +208,9 @@ export function useEmailIngestion(
     stopIngestion,
     clearError,
     clearProgress,
+    // WebSocket connection control
+    connectWebSocket,
+    disconnectWebSocket,
     // WebSocket actions (only if enabled)
     sendMessage: enableWebSocket ? sendMessage : undefined,
   };
