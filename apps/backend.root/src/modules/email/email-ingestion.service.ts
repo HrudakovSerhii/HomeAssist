@@ -3,7 +3,10 @@ import { EmailGateway, EmailIngestionProgress } from './email.gateway';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { ImapService } from '../imap/imap.service';
 import { EmailProcessorService } from './email-processor.service';
-import { EmailProcessingResult, EmailIngestionResults } from '../../types/email.types';
+import {
+  EmailProcessingResult,
+  EmailIngestionResults,
+} from '../../types/email.types';
 
 @Injectable()
 export class EmailIngestionService {
@@ -138,33 +141,34 @@ export class EmailIngestionService {
             processedEmails: 0,
           });
 
-          const processedEmails = await Promise.all(
-            storedEmails.map(async (email, index) => {
-              const processed = await this.emailProcessor.processEmail(
-                email.id,
-                templateName
-              );
+          const processedEmails = [];
+          for (let index = 0; index < storedEmails.length; index++) {
+            const email = storedEmails[index];
 
-              this.sendProgressUpdate(userId, {
-                stage: 'PROCESSING',
-                emailAccountId: account.id,
-                completedSteps: {
-                  fetched: true,
-                  stored: true,
-                  processed: false,
-                },
-                progress: 75 + (25 * (index + 1)) / storedEmails.length,
-                totalEmails: emails.length,
-                processedEmails: index + 1,
-                currentEmail: {
-                  subject: email.subject,
-                  from: email.fromAddress,
-                },
-              });
+            const processed = await this.emailProcessor.processEmail(
+              email.id,
+              templateName
+            );
 
-              return processed;
-            })
-          );
+            this.sendProgressUpdate(userId, {
+              stage: 'PROCESSING',
+              emailAccountId: account.id,
+              completedSteps: {
+                fetched: true,
+                stored: true,
+                processed: false,
+              },
+              progress: 75 + (25 * (index + 1)) / storedEmails.length,
+              totalEmails: emails.length,
+              processedEmails: index + 1,
+              currentEmail: {
+                subject: email.subject,
+                from: email.fromAddress,
+              },
+            });
+
+            processedEmails.push(processed);
+          }
 
           // Complete
           this.sendProgressUpdate(userId, {
