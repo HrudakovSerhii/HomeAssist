@@ -24,15 +24,7 @@ export class EmailService {
     }
   ) {
     try {
-      return await this.emailIngestionService.ingestAndProcessEmails(
-        userId,
-        options.limit,
-        {
-          folder: options.folder,
-          since: options.since,
-          before: options.before,
-        }
-      );
+      return await this.emailIngestionService.ingestUserEmails(userId, options);
     } catch (error) {
       throw new HttpException(
         `Email ingestion failed: ${error.message}`,

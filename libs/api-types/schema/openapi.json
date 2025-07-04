@@ -933,6 +933,93 @@
           }
         },
         "required": ["total", "processed", "pending", "failed"]
+      },
+      "EmailIngestionStage": {
+        "type": "string",
+        "enum": ["CONNECTING", "FETCHING", "STORING", "PROCESSING", "COMPLETED", "FAILED"]
+      },
+      "EmailIngestionProgress": {
+        "type": "object",
+        "properties": {
+          "stage": {
+            "$ref": "#/components/schemas/EmailIngestionStage"
+          },
+          "emailAccountId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "totalEmails": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "processedEmails": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "currentEmail": {
+            "type": "object",
+            "properties": {
+              "subject": {
+                "type": "string"
+              },
+              "from": {
+                "type": "string"
+              }
+            },
+            "required": ["subject", "from"]
+          },
+          "error": {
+            "type": "string"
+          },
+          "completedSteps": {
+            "type": "object",
+            "properties": {
+              "fetched": {
+                "type": "boolean"
+              },
+              "stored": {
+                "type": "boolean"
+              },
+              "processed": {
+                "type": "boolean"
+              }
+            },
+            "required": ["fetched", "stored", "processed"]
+          },
+          "progress": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100
+          },
+          "estimatedTimeRemaining": {
+            "type": "number",
+            "minimum": 0
+          }
+        },
+        "required": ["stage", "emailAccountId", "completedSteps", "progress"]
+      },
+      "WebSocketMessage": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": ["register", "progress"]
+          },
+          "data": {
+            "oneOf": [
+              {
+                "type": "string",
+                "format": "uuid",
+                "description": "userId for register message"
+              },
+              {
+                "$ref": "#/components/schemas/EmailIngestionProgress",
+                "description": "progress data for progress message"
+              }
+            ]
+          }
+        },
+        "required": ["type", "data"]
       }
     }
   },

@@ -1117,6 +1117,32 @@ export interface components {
             pending: number;
             failed: number;
         };
+        /** @enum {string} */
+        EmailIngestionStage: "CONNECTING" | "FETCHING" | "STORING" | "PROCESSING" | "COMPLETED" | "FAILED";
+        EmailIngestionProgress: {
+            stage: components["schemas"]["EmailIngestionStage"];
+            /** Format: uuid */
+            emailAccountId: string;
+            totalEmails?: number;
+            processedEmails?: number;
+            currentEmail?: {
+                subject: string;
+                from: string;
+            };
+            error?: string;
+            completedSteps: {
+                fetched: boolean;
+                stored: boolean;
+                processed: boolean;
+            };
+            progress: number;
+            estimatedTimeRemaining?: number;
+        };
+        WebSocketMessage: {
+            /** @enum {string} */
+            type: "register" | "progress";
+            data: string | components["schemas"]["EmailIngestionProgress"];
+        };
     };
     responses: never;
     parameters: never;

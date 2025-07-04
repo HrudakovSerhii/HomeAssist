@@ -1,7 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { EmailGateway, EmailIngestionProgress } from './email.gateway';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { ImapService } from '../imap/imap.service';
 import { EmailProcessorService } from './email-processor.service';
+import { EmailProcessingResult, EmailIngestionResults } from '../../types/email.types';
 
 @Injectable()
 export class EmailIngestionService {
@@ -10,143 +12,225 @@ export class EmailIngestionService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly imapService: ImapService,
-    private readonly emailProcessor: EmailProcessorService
+    private readonly emailProcessor: EmailProcessorService,
+    private readonly emailGateway: EmailGateway
   ) {}
 
-  /**
-   * Fetch emails from user's account, store them, and process with LLM
-   */
-  async ingestAndProcessEmails(
+  private sendProgressUpdate(userId: string, progress: EmailIngestionProgress) {
+    try {
+      this.emailGateway.sendProgressUpdate(userId, progress);
+    } catch (error) {
+      this.logger.error('Failed to send progress update', error);
+    }
+  }
+
+  async ingestUserEmails(
     userId: string,
-    limit: number = 5,
     options: {
+      limit?: number;
       folder?: string;
-      since?: Date;
-      before?: Date;
+      since?: Date; // TODO: use to to search emails if parameter provided
+      before?: Date; // TODO: use to to search emails if parameter provided
       templateName?: string;
     } = {}
-  ) {
+  ): Promise<EmailIngestionResults> {
+    const { limit = 5, folder = 'INBOX', templateName } = options;
+
     try {
-      // Get user's first active email account
-      const emailAccount = await this.prisma.emailAccount.findFirst({
-        where: {
-          userId,
-          isActive: true,
-        },
+      // Get user's email accounts
+      const emailAccounts = await this.prisma.emailAccount.findMany({
+        where: { userId, isActive: true },
       });
 
-      if (!emailAccount) {
-        throw new Error('No active email account found for user');
+      if (!emailAccounts.length) {
+        throw new Error('No active email accounts found');
       }
 
-      this.logger.log(`Starting email ingestion for ${emailAccount.email}`);
+      const results: EmailIngestionResults = [];
 
-      // Fetch, parse, and process emails in one streamlined operation
-      this.logger.log(`Fetching and processing emails (limit: ${limit})`);
-      const messages = await this.imapService.fetchAndProcessEmails(
-        emailAccount.id,
-        {
-          limit,
-          folder: options.folder || 'INBOX',
-          since: options.since,
-          before: options.before,
-        }
-      );
-
-      this.logger.log(
-        `Successfully fetched ${messages.length} emails from IMAP`
-      );
-
-      const results = {
-        fetched: messages.length,
-        stored: 0,
-        processed: 0,
-        failed: 0,
-        emails: [] as Array<{
-          id: string;
-          subject: string;
-          processed: boolean;
-          error?: string;
-        }>,
-      };
-
-      // Store and process each email
-      for (const message of messages) {
+      for (const account of emailAccounts) {
         try {
-          this.logger.log(
-            `Processing email: "${message.subject}" (UID: ${message.uid})`
-          );
-
-          // Check if email already exists
-          const existingEmail = await this.prisma.email.findUnique({
-            where: { messageId: message.messageId },
-          });
-
-          if (existingEmail) {
-            this.logger.log(
-              `Email ${message.messageId} already exists, skipping`
-            );
-            continue;
-          }
-
-          // Store email in database
-          const storedEmail = await this.prisma.email.create({
-            data: {
-              messageId: message.messageId,
-              emailAccountId: emailAccount.id,
-              subject: message.subject,
-              fromAddress: message.from,
-              toAddresses: message.to,
-              ccAddresses: message.cc,
-              bccAddresses: message.bcc,
-              receivedAt: message.date,
-              bodyText: message.bodyText,
-              bodyHtml: message.bodyHtml,
+          // Initial progress
+          this.sendProgressUpdate(userId, {
+            stage: 'CONNECTING',
+            emailAccountId: account.id,
+            completedSteps: {
+              fetched: false,
+              stored: false,
+              processed: false,
             },
+            progress: 0,
           });
 
-          results.stored++;
-          this.logger.log(
-            `Email stored successfully: "${storedEmail.subject}" (ID: ${storedEmail.id})`
+          // Test connection
+          const connectionTest = await this.imapService.testConnection(
+            account.id
           );
 
-          // Process email with LLM
-          const processingResult = await this.emailProcessor.processEmail(
-            storedEmail.id,
-            options.templateName
-          );
-
-          if (processingResult.success) {
-            results.processed++;
-            this.logger.log(
-              `LLM processing completed for: "${storedEmail.subject}"`
-            );
-          } else {
-            results.failed++;
-            this.logger.error(
-              `LLM processing failed for: "${storedEmail.subject}"`,
-              processingResult.error
-            );
+          if (!connectionTest.success) {
+            throw new Error(`Failed to connect: ${connectionTest.message}`);
           }
 
-          results.emails.push({
-            id: storedEmail.id,
-            subject: storedEmail.subject,
-            processed: processingResult.success,
-            error: processingResult.error,
+          // Fetch emails
+          this.sendProgressUpdate(userId, {
+            stage: 'FETCHING',
+            emailAccountId: account.id,
+            completedSteps: {
+              fetched: false,
+              stored: false,
+              processed: false,
+            },
+            progress: 20,
           });
+
+          const emails = await this.imapService.fetchAndProcessEmails(
+            account.id,
+            {
+              folder,
+              limit,
+            }
+          );
+
+          // Store emails
+          this.sendProgressUpdate(userId, {
+            stage: 'STORING',
+            emailAccountId: account.id,
+            completedSteps: {
+              fetched: true,
+              stored: false,
+              processed: false,
+            },
+            progress: 50,
+            totalEmails: emails.length,
+          });
+
+          const storedEmails = await Promise.all(
+            emails.map(async (email) => {
+              const stored = await this.prisma.email.create({
+                data: {
+                  messageId: email.messageId,
+                  emailAccountId: account.id,
+                  subject: email.subject,
+                  fromAddress: email.from,
+                  toAddresses: email.to,
+                  ccAddresses: email.cc,
+                  bccAddresses: email.bcc,
+                  receivedAt: email.date,
+                  bodyText: email.bodyText,
+                  bodyHtml: email.bodyHtml,
+                },
+              });
+              return stored;
+            })
+          );
+
+          // Process emails
+          this.sendProgressUpdate(userId, {
+            stage: 'PROCESSING',
+            emailAccountId: account.id,
+            completedSteps: {
+              fetched: true,
+              stored: true,
+              processed: false,
+            },
+            progress: 75,
+            totalEmails: emails.length,
+            processedEmails: 0,
+          });
+
+          const processedEmails = await Promise.all(
+            storedEmails.map(async (email, index) => {
+              const processed = await this.emailProcessor.processEmail(
+                email.id,
+                templateName
+              );
+
+              this.sendProgressUpdate(userId, {
+                stage: 'PROCESSING',
+                emailAccountId: account.id,
+                completedSteps: {
+                  fetched: true,
+                  stored: true,
+                  processed: false,
+                },
+                progress: 75 + (25 * (index + 1)) / storedEmails.length,
+                totalEmails: emails.length,
+                processedEmails: index + 1,
+                currentEmail: {
+                  subject: email.subject,
+                  from: email.fromAddress,
+                },
+              });
+
+              return processed;
+            })
+          );
+
+          // Complete
+          this.sendProgressUpdate(userId, {
+            stage: 'COMPLETED',
+            emailAccountId: account.id,
+            completedSteps: {
+              fetched: true,
+              stored: true,
+              processed: true,
+            },
+            progress: 100,
+            totalEmails: emails.length,
+            processedEmails: emails.length,
+          });
+
+          results.push({
+            accountId: account.id,
+            fetched: emails.length,
+            stored: storedEmails.length,
+            processed: processedEmails.length,
+            failed: 0,
+            emails: processedEmails.map((e: EmailProcessingResult) => ({
+              id: e.emailId,
+              subject: e.subject,
+              processed: e.success,
+            })),
+          });
+
+          // Close IMAP connection
+          await this.imapService.closeConnection(account.id);
         } catch (error) {
           this.logger.error(
-            `Error processing message ${message.messageId}:`,
+            `Failed to process account ${account.email}:`,
             error
           );
-          results.failed++;
+
+          this.sendProgressUpdate(userId, {
+            stage: 'FAILED',
+            emailAccountId: account.id,
+            error: error.message,
+            completedSteps: {
+              fetched: false,
+              stored: false,
+              processed: false,
+            },
+            progress: 0,
+          });
+
+          results.push({
+            accountId: account.id,
+            fetched: 0,
+            stored: 0,
+            processed: 0,
+            failed: 1,
+            error: error.message,
+            emails: [],
+          });
+
+          // Ensure connection is closed even on error
+          try {
+            await this.imapService.closeConnection(account.id);
+          } catch (closeError) {
+            this.logger.warn(`Failed to close IMAP connection:`, closeError);
+          }
         }
       }
-
-      this.logger.log(
-        `Ingestion completed. Stored: ${results.stored}, Processed: ${results.processed}, Failed: ${results.failed}`
-      );
 
       return results;
     } catch (error) {

@@ -19,6 +19,13 @@ export const API_ENDPOINTS = {
     updateAction: (emailId: string, actionIndex: number) =>
       `/data/emails/${emailId}/actions/${actionIndex}`,
   },
+  email: {
+    ingest: '/email/ingest',
+    ingestUser: (userId: string) => `/email/ingest/${userId}`,
+    process: (id: string) => `/email/${id}/process`,
+    processBatch: '/email/process/batch',
+    status: (userId: string) => `/email/status/${userId}`,
+  },
   health: '/health',
   llm: {
     execute: '/llm/execute',

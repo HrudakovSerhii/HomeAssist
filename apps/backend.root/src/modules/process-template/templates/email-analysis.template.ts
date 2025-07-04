@@ -1,18 +1,19 @@
-import { EmailCategory } from '../../../types/email.types';
+import { EmailCategory } from '.prisma/client';
 
 export const GENERAL_EMAIL_ANALYSIS_TEMPLATE = {
   name: 'general-email-analysis',
-  description: 'General purpose email analysis for categorization, priority, sentiment, and entity extraction',
+  description:
+    'General purpose email analysis for categorization, priority, sentiment, and entity extraction',
   categories: [
-    EmailCategory.PERSONAL, 
-    EmailCategory.WORK, 
-    EmailCategory.MARKETING, 
-    EmailCategory.NEWSLETTER, 
-    EmailCategory.SUPPORT, 
-    EmailCategory.NOTIFICATION, 
-    EmailCategory.INVOICE, 
-    EmailCategory.RECEIPT, 
-    EmailCategory.APPOINTMENT
+    EmailCategory.PERSONAL,
+    EmailCategory.WORK,
+    EmailCategory.MARKETING,
+    EmailCategory.NEWSLETTER,
+    EmailCategory.SUPPORT,
+    EmailCategory.NOTIFICATION,
+    EmailCategory.INVOICE,
+    EmailCategory.RECEIPT,
+    EmailCategory.APPOINTMENT,
   ],
   template: `Analyze the following email and extract:
 1. Category (PERSONAL, WORK, MARKETING, NEWSLETTER, SUPPORT, NOTIFICATION, INVOICE, RECEIPT, APPOINTMENT)
@@ -47,22 +48,37 @@ Respond in JSON format only:
   ],
   "tags": ["meeting", "urgent", "response-needed"],
   "confidence": 0.85
-}`,
+}
+
+Use rules when:
+If 'entities' array item value is multiple strings - combine them together.
+`,
+
   expectedOutputSchema: {
     type: 'object',
     required: ['category', 'priority', 'sentiment', 'summary'],
     properties: {
-      category: { 
+      category: {
         type: 'string',
-        enum: ['PERSONAL', 'WORK', 'MARKETING', 'NEWSLETTER', 'SUPPORT', 'NOTIFICATION', 'INVOICE', 'RECEIPT', 'APPOINTMENT']
+        enum: [
+          'PERSONAL',
+          'WORK',
+          'MARKETING',
+          'NEWSLETTER',
+          'SUPPORT',
+          'NOTIFICATION',
+          'INVOICE',
+          'RECEIPT',
+          'APPOINTMENT',
+        ],
       },
-      priority: { 
+      priority: {
         type: 'string',
-        enum: ['LOW', 'MEDIUM', 'HIGH', 'URGENT']
+        enum: ['LOW', 'MEDIUM', 'HIGH', 'URGENT'],
       },
-      sentiment: { 
+      sentiment: {
         type: 'string',
-        enum: ['POSITIVE', 'NEGATIVE', 'NEUTRAL', 'MIXED']
+        enum: ['POSITIVE', 'NEGATIVE', 'NEUTRAL', 'MIXED'],
       },
       summary: { type: 'string', maxLength: 500 },
       entities: {
@@ -72,9 +88,9 @@ Respond in JSON format only:
           properties: {
             type: { type: 'string' },
             value: { type: 'string' },
-            confidence: { type: 'number', minimum: 0, maximum: 1 }
-          }
-        }
+            confidence: { type: 'number', minimum: 0, maximum: 1 },
+          },
+        },
       },
       actionItems: {
         type: 'array',
@@ -83,15 +99,15 @@ Respond in JSON format only:
           properties: {
             actionType: { type: 'string' },
             description: { type: 'string' },
-            priority: { type: 'string' }
-          }
-        }
+            priority: { type: 'string' },
+          },
+        },
       },
       tags: {
         type: 'array',
-        items: { type: 'string' }
+        items: { type: 'string' },
       },
-      confidence: { type: 'number', minimum: 0, maximum: 1 }
-    }
-  }
-}; 
+      confidence: { type: 'number', minimum: 0, maximum: 1 },
+    },
+  },
+};

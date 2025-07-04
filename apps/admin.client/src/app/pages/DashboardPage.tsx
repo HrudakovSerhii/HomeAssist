@@ -1,25 +1,26 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth, useApi } from '../hooks';
+import { useAuth, useApi, useWebSocket } from '../hooks';
+
 import {
   PageContainer,
   LoadingSpinner,
   Dropdown,
   AlertMessage,
+  Button,
+  EmailIngestionProgressView,
 } from '../components';
-import { dataService, authService } from '../services';
-import { DashboardFilterOptions } from '../../../constants';
 
-import { EmailData, FilterState } from '../types';
+import { dataService, authService, apiClient } from '../services';
+import { DashboardFilterOptions } from '../../../constants';
+import { API_ENDPOINTS } from '../../configuration';
+
+import type { EmailData, FilterState } from '../types';
 import type {
   ExtractedDataResponse,
   UserAccountsResponse,
+  EmailIngestionProgress,
 } from '@home-assist/api-types';
-import { Button } from '../components/ui/Button';
-import { EmailIngestionProgress, IngestionProgress } from '../components/ui/EmailIngestionProgress';
-import { apiClient } from '../services/apiClient';
-import { useWebSocket } from '../hooks/useWebSocket';
-import { API_ENDPOINTS } from '../../configuration';
 
 const initialFilters: FilterState = {
   search: '',
@@ -50,7 +51,8 @@ const DashboardPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isIngesting, setIsIngesting] = useState(false);
-  const [ingestionProgress, setIngestionProgress] = useState<IngestionProgress | null>(null);
+  const [ingestionProgress, setIngestionProgress] =
+    useState<EmailIngestionProgress | null>(null);
 
   // API hooks
   const fetchDataApi = useApi<ExtractedDataResponse>(
@@ -66,11 +68,13 @@ const DashboardPage: React.FC = () => {
     API_ENDPOINTS.ws.email.ingestion,
     {
       onMessage: (data) => {
-        const progress: IngestionProgress = data;
+        const progress: EmailIngestionProgress = data;
+
         setIngestionProgress(progress);
 
         if (progress.stage === 'COMPLETED' || progress.stage === 'FAILED') {
           setIsIngesting(false);
+
           if (progress.stage === 'FAILED' && progress.error) {
             setError(progress.error);
           }
@@ -277,13 +281,14 @@ const DashboardPage: React.FC = () => {
         sendMessage({ userId: user.id });
       }
 
-      await apiClient.post('/email/ingest', {
+      await apiClient.post(API_ENDPOINTS.email.ingest, {
         userId: user.id,
         limit: 5,
         folder: 'INBOX',
       });
-    } catch (err) {
-      setError('Failed to start email ingestion. Please try again.');
+    } catch (error) {
+      console.error('Failed to ingest emails:', error);
+      setError('Failed to ingest emails. Please try again.');
       setIsIngesting(false);
       setIngestionProgress(null);
     }
@@ -313,7 +318,7 @@ const DashboardPage: React.FC = () => {
   }
 
   const userAccounts = fetchAccountsApi.data?.data || [];
-
+  console.log(user);
   // Show message if no accounts are available
   if (userAccounts.length === 0) {
     return (
@@ -811,7 +816,7 @@ const DashboardPage: React.FC = () => {
           </Button>
         </div>
 
-        <EmailIngestionProgress
+        <EmailIngestionProgressView
           isOpen={!!ingestionProgress}
           onClose={handleCloseProgress}
           progress={ingestionProgress}

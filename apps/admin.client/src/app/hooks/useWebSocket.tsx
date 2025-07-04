@@ -1,4 +1,4 @@
-import { useEffect, useCallback, useState } from 'react';
+import { useEffect, useCallback, useState, useRef } from 'react';
 
 import { API_ENDPOINTS } from '../../configuration';
 
@@ -34,12 +34,26 @@ export function useWebSocket(
     reconnectInterval = 5000,
   }: UseWebSocketOptions = {}
 ): UseWebSocketReturn {
-  const [ws, setWs] = useState<WebSocket | null>(null);
+  const ws = useRef<WebSocket | null>(null);
+  const reconnectTimer = useRef<number | undefined>(undefined);
+  const reconnectCount = useRef<number>(0);
   const [isConnected, setIsConnected] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [reconnectCount, setReconnectCount] = useState(0);
+
+  const cleanup = useCallback(() => {
+    if (reconnectTimer.current !== undefined) {
+      window.clearTimeout(reconnectTimer.current);
+      reconnectTimer.current = undefined;
+    }
+    if (ws.current) {
+      ws.current.close();
+      ws.current = null;
+    }
+  }, []);
 
   const connect = useCallback(() => {
+    cleanup();
+
     try {
       const wsUrl = `${API_ENDPOINTS.ws.baseUrl}${path}`;
       const socket = new WebSocket(wsUrl);
@@ -47,7 +61,7 @@ export function useWebSocket(
       socket.onopen = () => {
         setIsConnected(true);
         setError(null);
-        setReconnectCount(0);
+        reconnectCount.current = 0;
       };
 
       socket.onmessage = (event) => {
@@ -68,15 +82,15 @@ export function useWebSocket(
         setIsConnected(false);
         onClose?.();
 
-        if (autoReconnect && reconnectCount < reconnectAttempts) {
-          setTimeout(() => {
-            setReconnectCount((prev) => prev + 1);
+        if (autoReconnect && reconnectCount.current < reconnectAttempts) {
+          reconnectTimer.current = window.setTimeout(() => {
+            reconnectCount.current += 1;
             connect();
           }, reconnectInterval);
         }
       };
 
-      setWs(socket);
+      ws.current = socket;
     } catch (err) {
       setError('Failed to establish WebSocket connection');
       console.error('WebSocket connection error:', err);
@@ -89,34 +103,28 @@ export function useWebSocket(
     autoReconnect,
     reconnectAttempts,
     reconnectInterval,
-    reconnectCount,
+    cleanup,
   ]);
 
   useEffect(() => {
     connect();
-    return () => {
-      if (ws) {
-        ws.close();
-      }
-    };
-  }, [connect]);
+    return cleanup;
+  }, [connect, cleanup]);
 
   const sendMessage = useCallback(
     (data: any) => {
-      if (ws && isConnected) {
-        ws.send(JSON.stringify(data));
+      if (ws.current && isConnected) {
+        ws.current.send(JSON.stringify(data));
       } else {
         console.warn('WebSocket is not connected');
       }
     },
-    [ws, isConnected]
+    [isConnected]
   );
 
   const disconnect = useCallback(() => {
-    if (ws) {
-      ws.close();
-    }
-  }, [ws]);
+    cleanup();
+  }, [cleanup]);
 
   return {
     isConnected,

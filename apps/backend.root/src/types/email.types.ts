@@ -395,3 +395,19 @@ export type EmailProcessingErrorSummary = {
   recent: EmailProcessingError[];
   retryableCount: number;
 };
+
+export type EmailIngestionAccountResult = {
+  accountId: string;
+  fetched: number;
+  stored: number;
+  processed: number;
+  failed: number;
+  error?: string;
+  emails: Array<{
+    id: string;
+    subject: string;
+    processed: boolean;
+  }>;
+};
+
+export type EmailIngestionResults = EmailIngestionAccountResult[];

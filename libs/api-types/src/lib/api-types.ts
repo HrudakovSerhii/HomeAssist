@@ -51,8 +51,13 @@ export type IngestEmailsDto = components['schemas']['IngestEmailsDto'];
 export type IngestUserEmailsDto = components['schemas']['IngestUserEmailsDto'];
 export type ProcessEmailDto = components['schemas']['ProcessEmailDto'];
 export type ProcessBatchDto = components['schemas']['ProcessBatchDto'];
-export type EmailIngestionResponse = components['schemas']['EmailIngestionResponse'];
-export type ProcessingStatusResponse = components['schemas']['ProcessingStatusResponse'];
+export type EmailIngestionResponse =
+  components['schemas']['EmailIngestionResponse'];
+export type ProcessingStatusResponse =
+  components['schemas']['ProcessingStatusResponse'];
+export type EmailIngestionProgress =
+  components['schemas']['EmailIngestionProgress'];
+export type EmailIngestionStage = components['schemas']['EmailIngestionStage'];
 
 // API utility types
 export type ApiPaths = keyof paths;

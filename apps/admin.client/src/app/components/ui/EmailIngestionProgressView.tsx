@@ -2,39 +2,23 @@ import React from 'react';
 
 import { LoadingSpinner } from './LoadingSpinner';
 
-export type IngestionProgress = {
-  stage: 'CONNECTING' | 'FETCHING' | 'STORING' | 'PROCESSING' | 'COMPLETED' | 'FAILED';
-  emailAccountId: string;
-  totalEmails?: number;
-  processedEmails?: number;
-  currentEmail?: {
-    subject: string;
-    from: string;
-  };
-  error?: string;
-  completedSteps: {
-    fetched: boolean;
-    stored: boolean;
-    processed: boolean;
-  };
-  progress: number;
-  estimatedTimeRemaining?: number;
-};
+import {
+  EmailIngestionProgress,
+  EmailIngestionStage,
+} from '@home-assist/api-types';
 
 interface EmailIngestionProgressProps {
   isOpen: boolean;
   onClose: () => void;
-  progress: IngestionProgress | null;
+  progress: EmailIngestionProgress | null;
 }
 
-export const EmailIngestionProgress: React.FC<EmailIngestionProgressProps> = ({
-  isOpen,
-  onClose,
-  progress,
-}) => {
+export const EmailIngestionProgressView: React.FC<
+  EmailIngestionProgressProps
+> = ({ isOpen, onClose, progress }) => {
   if (!isOpen || !progress) return null;
 
-  const getStageLabel = (stage: IngestionProgress['stage']) => {
+  const getStageLabel = (stage: EmailIngestionStage) => {
     switch (stage) {
       case 'CONNECTING':
         return 'Connecting to email server...';
@@ -85,13 +69,14 @@ export const EmailIngestionProgress: React.FC<EmailIngestionProgressProps> = ({
                   {getStageLabel(progress.stage)}
                 </span>
               </div>
-              {progress.estimatedTimeRemaining && progress.stage !== 'COMPLETED' && (
-                <div className="text-right">
-                  <span className="text-sm font-semibold inline-block text-gray-600">
-                    {formatTimeRemaining(progress.estimatedTimeRemaining)}
-                  </span>
-                </div>
-              )}
+              {progress.estimatedTimeRemaining &&
+                progress.stage !== 'COMPLETED' && (
+                  <div className="text-right">
+                    <span className="text-sm font-semibold inline-block text-gray-600">
+                      {formatTimeRemaining(progress.estimatedTimeRemaining)}
+                    </span>
+                  </div>
+                )}
             </div>
             <div className="overflow-hidden h-2 mb-4 text-xs flex rounded bg-primary-100">
               <div
@@ -122,8 +107,8 @@ export const EmailIngestionProgress: React.FC<EmailIngestionProgressProps> = ({
           {progress.totalEmails && (
             <div className="text-sm text-gray-600">
               <p>
-                Processed {progress.processedEmails || 0} of {progress.totalEmails}{' '}
-                emails
+                Processed {progress.processedEmails || 0} of{' '}
+                {progress.totalEmails} emails
               </p>
             </div>
           )}

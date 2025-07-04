@@ -16,7 +16,6 @@ import {
   Min,
   Max,
   IsBoolean,
-  IsDate,
   IsISO8601,
 } from 'class-validator';
 import { Transform, Type } from 'class-transformer';
@@ -30,7 +29,6 @@ import type {
   IngestUserEmailsDto as ApiIngestUserEmailsDto,
   ProcessEmailDto as ApiProcessEmailDto,
   ProcessBatchDto as ApiProcessBatchDto,
-  EmailIngestionResponse as ApiEmailIngestionResponse,
   ProcessingStatusResponse as ApiProcessingStatusResponse,
 } from '@home-assist/api-types';
 
@@ -50,12 +48,12 @@ export class IngestEmailsDto implements ApiIngestEmailsDto {
 
   @IsOptional()
   @IsISO8601()
-  @Transform(({ value }) => value ? new Date(value).toISOString() : undefined)
+  @Transform(({ value }) => (value ? new Date(value).toISOString() : undefined))
   since?: string;
 
   @IsOptional()
   @IsISO8601()
-  @Transform(({ value }) => value ? new Date(value).toISOString() : undefined)
+  @Transform(({ value }) => (value ? new Date(value).toISOString() : undefined))
   before?: string;
 
   @IsOptional()
@@ -117,12 +115,12 @@ export class IngestUserEmailsDto implements ApiIngestUserEmailsDto {
 
   @IsOptional()
   @IsISO8601()
-  @Transform(({ value }) => value ? new Date(value).toISOString() : undefined)
+  @Transform(({ value }) => (value ? new Date(value).toISOString() : undefined))
   since?: string;
 
   @IsOptional()
   @IsISO8601()
-  @Transform(({ value }) => value ? new Date(value).toISOString() : undefined)
+  @Transform(({ value }) => (value ? new Date(value).toISOString() : undefined))
   before?: string;
 }
 
@@ -139,19 +137,20 @@ export class EmailController {
    * Manually trigger email ingestion from Gmail
    */
   @Post('ingest')
-  async ingestEmails(@Body() dto: IngestEmailsDto): Promise<ApiEmailIngestionResponse> {
+  async ingestEmails(@Body() dto: IngestEmailsDto) {
     try {
-      const result = await this.emailService.ingestEmails(dto.userId, {
+      const results = await this.emailService.ingestEmails(dto.userId, {
         limit: dto.limit,
         folder: dto.folder,
         since: dto.since ? new Date(dto.since) : undefined,
         before: dto.before ? new Date(dto.before) : undefined,
         templateName: dto.templateName,
       });
+
       return {
         success: true,
-        message: `Email ingestion completed`,
-        ...result,
+        message: 'Email ingestion completed',
+        results,
       };
     } catch (error) {
       throw new HttpException(
@@ -167,22 +166,20 @@ export class EmailController {
   @Post('ingest/:userId')
   async ingestUserEmails(
     @Param('userId') userId: string,
-    @Body() dto: IngestUserEmailsDto = { limit: 5, folder: 'INBOX' }
-  ): Promise<ApiEmailIngestionResponse> {
+    @Body() dto: IngestUserEmailsDto
+  ) {
     try {
-      const result = await this.emailIngestionService.ingestAndProcessEmails(
-        userId,
-        dto.limit,
-        {
-          folder: dto.folder,
-          since: dto.since ? new Date(dto.since) : undefined,
-          before: dto.before ? new Date(dto.before) : undefined,
-        }
-      );
+      const results = await this.emailService.ingestEmails(userId, {
+        limit: dto.limit,
+        folder: dto.folder,
+        since: dto.since ? new Date(dto.since) : undefined,
+        before: dto.before ? new Date(dto.before) : undefined,
+      });
+
       return {
         success: true,
-        message: `Email ingestion and processing completed for user ${userId}`,
-        ...result,
+        message: 'Email ingestion completed',
+        results,
       };
     } catch (error) {
       throw new HttpException(
