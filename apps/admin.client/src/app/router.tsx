@@ -11,7 +11,9 @@ import AddAccountPage from './pages/AddAccountPage';
 import { APP_ENDPOINTS } from '../configuration';
 
 // Lazy load dashboard for better performance
-const DashboardPage = React.lazy(() => import('./pages/DashboardPage'));
+const DashboardPage = React.lazy(
+  () => import('./pages/dashboard/DashboardPage')
+);
 
 export const AppRouter: React.FC = () => {
   return (

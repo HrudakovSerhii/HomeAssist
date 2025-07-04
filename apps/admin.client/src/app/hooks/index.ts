@@ -8,3 +8,4 @@ export {
   useStorageEvent,
 } from './useLocalStorage';
 export { useWebSocket } from './useWebSocket';
+export { useEmailIngestion } from './useEmailIngestion';
