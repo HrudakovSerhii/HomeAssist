@@ -89,6 +89,7 @@ If 'entities' array item value is multiple strings - combine them together.
             type: { type: 'string' },
             value: { type: 'string' },
             confidence: { type: 'number', minimum: 0, maximum: 1 },
+            context: { type: 'string' },
           },
         },
       },

@@ -255,6 +255,7 @@ enum EntityType {
   INVOICE_NUMBER
   ACCOUNT_NUMBER
   PRODUCT
+  REGION
 }
 
 enum ActionType {
@@ -267,6 +268,7 @@ enum ActionType {
   CALL
   REVIEW_DOCUMENT
   PAYMENT_DUE
+  VIEW_URL
 }
 
 model EmailAccount {
