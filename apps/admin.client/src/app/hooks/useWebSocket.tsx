@@ -1,4 +1,5 @@
 import { useEffect, useCallback, useState, useRef } from 'react';
+import { io, Socket } from 'socket.io-client';
 
 import { API_ENDPOINTS } from '../../configuration';
 
@@ -9,7 +10,7 @@ export interface WebSocketMessage<T = any> {
 
 interface UseWebSocketOptions {
   onMessage?: (data: any) => void;
-  onError?: (error: Event) => void;
+  onError?: (error: Error) => void;
   onClose?: () => void;
   autoReconnect?: boolean;
   reconnectAttempts?: number;
@@ -34,20 +35,14 @@ export function useWebSocket(
     reconnectInterval = 5000,
   }: UseWebSocketOptions = {}
 ): UseWebSocketReturn {
-  const ws = useRef<WebSocket | null>(null);
-  const reconnectTimer = useRef<number | undefined>(undefined);
-  const reconnectCount = useRef<number>(0);
+  const socket = useRef<Socket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const cleanup = useCallback(() => {
-    if (reconnectTimer.current !== undefined) {
-      window.clearTimeout(reconnectTimer.current);
-      reconnectTimer.current = undefined;
-    }
-    if (ws.current) {
-      ws.current.close();
-      ws.current = null;
+    if (socket.current) {
+      socket.current.disconnect();
+      socket.current = null;
     }
   }, []);
 
@@ -55,45 +50,47 @@ export function useWebSocket(
     cleanup();
 
     try {
-      const wsUrl = `${API_ENDPOINTS.ws.baseUrl}${path}`;
-      const socket = new WebSocket(wsUrl);
+      // Remove leading slash from path if present for namespace
+      const namespace = path.startsWith('/') ? path.slice(1) : path;
+      
+      // Create Socket.IO connection
+      const socketInstance = io(`${API_ENDPOINTS.ws.baseUrl}/${namespace}`, {
+        autoConnect: true,
+        reconnection: autoReconnect,
+        reconnectionAttempts: reconnectAttempts,
+        reconnectionDelay: reconnectInterval,
+        transports: ['websocket', 'polling'],
+      });
 
-      socket.onopen = () => {
+      socketInstance.on('connect', () => {
         setIsConnected(true);
         setError(null);
-        reconnectCount.current = 0;
-      };
+      });
 
-      socket.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data);
-          onMessage?.(data);
-        } catch (err) {
-          console.error('Failed to parse WebSocket message:', err);
-        }
-      };
-
-      socket.onerror = (event) => {
-        setError('WebSocket connection error');
-        onError?.(event);
-      };
-
-      socket.onclose = () => {
+      socketInstance.on('disconnect', () => {
         setIsConnected(false);
         onClose?.();
+      });
 
-        if (autoReconnect && reconnectCount.current < reconnectAttempts) {
-          reconnectTimer.current = window.setTimeout(() => {
-            reconnectCount.current += 1;
-            connect();
-          }, reconnectInterval);
-        }
-      };
+      socketInstance.on('connect_error', (err) => {
+        setError('Socket.IO connection error');
+        onError?.(err);
+      });
 
-      ws.current = socket;
+      // Listen for progress messages (specific to email ingestion)
+      socketInstance.on('progress', (data) => {
+        onMessage?.(data);
+      });
+
+      // Listen for any other messages
+      socketInstance.on('message', (data) => {
+        onMessage?.(data);
+      });
+
+      socket.current = socketInstance;
     } catch (err) {
-      setError('Failed to establish WebSocket connection');
-      console.error('WebSocket connection error:', err);
+      setError('Failed to establish Socket.IO connection');
+      console.error('Socket.IO connection error:', err);
     }
   }, [
     path,
@@ -113,10 +110,11 @@ export function useWebSocket(
 
   const sendMessage = useCallback(
     (data: any) => {
-      if (ws.current && isConnected) {
-        ws.current.send(JSON.stringify(data));
+      if (socket.current && isConnected) {
+        // Send register message for email ingestion
+        socket.current.emit('register', data);
       } else {
-        console.warn('WebSocket is not connected');
+        console.warn('Socket.IO is not connected');
       }
     },
     [isConnected]

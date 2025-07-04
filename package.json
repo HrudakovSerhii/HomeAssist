@@ -13,6 +13,7 @@
     "db:migrate": "cd apps/backend.root && npx dotenv -e ../../.env.development -- npx prisma migrate dev",
     "db:generate": "cd apps/backend.root && npx dotenv -e ../../.env.development -- npx prisma generate",
     "db:studio": "cd apps/backend.root && npx dotenv -e ../../.env.development -- npx prisma studio",
+    "db:docker:up": "docker compose -f ./docker-compose.db.yml up",
     "generate-types": "cd libs/api-types && npm run generate-types"
   },
   "private": true,
@@ -96,6 +97,7 @@
     "react": "19.0.0",
     "react-dom": "19.0.0",
     "react-router-dom": "6.29.0",
-    "socket.io": "^4.8.1"
+    "socket.io": "^4.8.1",
+    "socket.io-client": "^4.8.1"
   }
 }

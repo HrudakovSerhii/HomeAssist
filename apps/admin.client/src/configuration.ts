@@ -1,7 +1,7 @@
 export const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000';
 export const API_PREFIX = import.meta.env.VITE_API_PREFIX || 'api';
-export const WS_BASE_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:4000';
+export const WS_BASE_URL = import.meta.env.VITE_WS_URL || 'http://localhost:4000';
 
 // API Endpoints - aligned with OpenAPI schema
 export const API_ENDPOINTS = {

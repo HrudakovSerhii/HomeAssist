@@ -124,14 +124,14 @@ const DashboardPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [getApiParams, fetchDataApi]);
+  }, [getApiParams, fetchDataApi.execute]);
 
   // Effects
   useEffect(() => {
     if (user && !fetchAccountsApi.data) {
-      fetchAccountsApi.execute(user.id);
+      fetchAccountsApi.execute(user.id).finally();
     }
-  }, [user, fetchAccountsApi]);
+  }, [user]);
 
   useEffect(() => {
     if (
@@ -147,13 +147,13 @@ const DashboardPage: React.FC = () => {
     if (currentPage !== 1) {
       setCurrentPage(1);
     } else {
-      fetchData();
+      // fetchData();
     }
   }, [filters]);
 
   useEffect(() => {
     if (currentPage !== 1) {
-      fetchData();
+      // fetchData();
     }
   }, [currentPage, fetchData]);
 
@@ -244,7 +244,7 @@ const DashboardPage: React.FC = () => {
       </PageContainer>
     );
   }
-
+  console.log(ingestionError);
   return (
     <PageContainer>
       <div className="space-y-6">

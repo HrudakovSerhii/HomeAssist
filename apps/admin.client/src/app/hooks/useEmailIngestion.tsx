@@ -119,7 +119,7 @@ export function useEmailIngestion(
 
       // Send initial message to WebSocket if connected and enabled
       if (enableWebSocket && isConnected && sendMessage) {
-        sendMessage({ userId: user.id });
+        sendMessage(user.id);
       }
 
       // Start the ingestion process
