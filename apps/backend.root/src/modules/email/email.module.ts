@@ -9,17 +9,24 @@ import { EmailIngestionService } from './email-ingestion.service';
 import { LLMModule } from '../llm/llm.module';
 import { PrismaModule } from '../../common/prisma/prisma.module';
 import { TemplateService } from '../process-template/template.service';
+import { TemplateValidatorService } from '../process-template/template-validator.service';
+import { EntityValueParserService } from '../process-template/entity-value-parser.service';
+import { DynamicEntityManagerService } from '../process-template/dynamic-entity-manager.service';
+import { DynamicEntityTypesController } from '../process-template/dynamic-entity-types.controller';
 import { AuthService } from '../auth/auth.service';
 import { ImapService } from '../imap/imap.service';
 import { EncryptionService } from '../encrypt/encryption.service';
 
 @Module({
   imports: [ConfigModule, PrismaModule, LLMModule],
-  controllers: [EmailController],
+  controllers: [EmailController, DynamicEntityTypesController],
   providers: [
     EmailService,
     EmailProcessorService,
     TemplateService,
+    TemplateValidatorService,
+    EntityValueParserService,
+    DynamicEntityManagerService,
     AuthService,
     ImapService,
     EncryptionService,
@@ -30,6 +37,9 @@ import { EncryptionService } from '../encrypt/encryption.service';
     EmailService,
     EmailProcessorService,
     TemplateService,
+    TemplateValidatorService,
+    EntityValueParserService,
+    DynamicEntityManagerService,
     AuthService,
     ImapService,
     EncryptionService,

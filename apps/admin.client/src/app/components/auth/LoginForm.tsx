@@ -16,8 +16,8 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, onError }) => {
 
   const form = useForm({
     initialValues: {
-      username: '',
-      password: '',
+      username: 'Serhii',
+      password: 'Serhii123',
     },
     validationSchema: validationSchemas.login,
   });

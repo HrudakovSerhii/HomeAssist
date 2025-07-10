@@ -2,10 +2,18 @@ import { Injectable, HttpException, HttpStatus } from '@nestjs/common';
 import { EmailCategory } from '@prisma/client';
 
 import { PrismaService } from '../../common/prisma/prisma.service';
+import { TemplateValidatorService } from './template-validator.service';
+import { 
+  EmailAnalysisTemplate, 
+  TemplateValidationResult 
+} from '../../types/email.types';
 
 @Injectable()
 export class TemplateService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly templateValidator: TemplateValidatorService
+  ) {}
 
   /**
    * Get all active templates
@@ -45,7 +53,7 @@ export class TemplateService {
   }
 
   /**
-   * Create new template
+   * Create new template with validation
    */
   async createTemplate(data: {
     name: string;
@@ -77,6 +85,41 @@ export class TemplateService {
         version: data.version || '1.0.0',
       },
     });
+  }
+
+  /**
+   * Validate a type-safe template
+   */
+  validateEmailAnalysisTemplate(template: EmailAnalysisTemplate): TemplateValidationResult {
+    return this.templateValidator.validateTemplate(template);
+  }
+
+  /**
+   * Validate LLM response against schema types
+   */
+  async validateLLMResponse(response: any): Promise<TemplateValidationResult> {
+    return await this.templateValidator.validateLLMResponse(response);
+  }
+
+  /**
+   * Get all available enum values for template creation
+   */
+  getAvailableEnums() {
+    return this.templateValidator.getAvailableEnums();
+  }
+
+  /**
+   * Convert type-safe template to database format
+   */
+  convertToDbFormat(template: EmailAnalysisTemplate) {
+    return {
+      name: template.name,
+      description: template.description,
+      template: template.template,
+      expectedOutputSchema: template.expectedOutputSchema,
+      categories: template.categories,
+      version: '1.0.0',
+    };
   }
 
   /**

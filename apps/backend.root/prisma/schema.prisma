@@ -256,6 +256,8 @@ enum EntityType {
   ACCOUNT_NUMBER
   PRODUCT
   REGION
+  TECHNOLOGY
+  DATE_RANGE
 }
 
 enum ActionType {
@@ -269,6 +271,7 @@ enum ActionType {
   REVIEW_DOCUMENT
   PAYMENT_DUE
   VIEW_URL
+  VIEW_LINK
 }
 
 model EmailAccount {

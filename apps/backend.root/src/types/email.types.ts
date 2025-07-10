@@ -411,3 +411,44 @@ export type EmailIngestionAccountResult = {
 };
 
 export type EmailIngestionResults = EmailIngestionAccountResult[];
+
+// Template type safety interface
+export interface EmailAnalysisTemplate {
+  name: string;
+  description: string;
+  categories: EmailCategory[];
+  template: string;
+  expectedOutputSchema: {
+    type: 'object';
+    required: string[];
+    properties: Record<string, any>;
+  };
+  // Type-safe example response structure
+  exampleResponse: {
+    category: EmailCategory;
+    priority: Priority;
+    sentiment: Sentiment;
+    summary: string;
+    entities: Array<{
+      type: EntityType;
+      value: string | string[];
+      confidence: number;
+      context?: string;
+    }>;
+    actionItems: Array<{
+      actionType: ActionType;
+      description: string;
+      priority: Priority;
+      dueDate?: string;
+    }>;
+    tags: string[];
+    confidence: number;
+  };
+}
+
+// Template validation result
+export interface TemplateValidationResult {
+  isValid: boolean;
+  errors: string[];
+  warnings: string[];
+}

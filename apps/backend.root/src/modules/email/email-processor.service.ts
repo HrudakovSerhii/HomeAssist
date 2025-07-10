@@ -2,6 +2,7 @@ import { Injectable, HttpException, HttpStatus, Logger } from '@nestjs/common';
 
 import { LLMService } from '../llm/llm.service';
 import { TemplateService } from '../process-template/template.service';
+import { EntityValueParserService } from '../process-template/entity-value-parser.service';
 import { PrismaService } from '../../common/prisma/prisma.service';
 
 import {
@@ -28,7 +29,8 @@ export class EmailProcessorService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly llmService: LLMService,
-    private readonly templateService: TemplateService
+    private readonly templateService: TemplateService,
+    private readonly entityValueParser: EntityValueParserService
   ) {}
 
   /**
@@ -92,7 +94,7 @@ export class EmailProcessorService {
       });
 
       // Parse and validate LLM response
-      const extractedData = this.parseLLMResponse(
+      const extractedData = await this.parseLLMResponse(
         llmResponse.response || llmResponse.message?.content
       );
 
@@ -110,12 +112,20 @@ export class EmailProcessorService {
           // Create related entities
           entities: {
             create:
-              extractedData.entities?.map((entity) => ({
-                entityType: entity.type,
-                entityValue: entity.value,
-                confidence: entity.confidence || 0.8,
-                context: entity.context,
-              })) || [],
+              extractedData.entities?.map((entity) => {
+                // Parse and serialize entity value based on type
+                const serializedValue = this.entityValueParser.serializeForDatabase(
+                  entity.type,
+                  entity.value
+                );
+                
+                return {
+                  entityType: entity.type,
+                  entityValue: serializedValue,
+                  confidence: entity.confidence || 0.8,
+                  context: entity.context,
+                };
+              }) || [],
           },
           // Create action items
           actionItems: {
@@ -228,14 +238,26 @@ export class EmailProcessorService {
   }
 
   /**
-   * Parse LLM response into structured data
+   * Parse LLM response into structured data with validation
    */
-  private parseLLMResponse(response: string): ParsedLLMResponse {
+  private async parseLLMResponse(response: string): Promise<ParsedLLMResponse> {
     try {
       // Try to extract JSON from the response
       const jsonMatch = response.match(/\{[\s\S]*}/);
       if (jsonMatch) {
         const parsedData = JSON.parse(jsonMatch[0]);
+
+        // Validate LLM response against schema types with dynamic entity handling
+        const validationResult = await this.templateService.validateLLMResponse(parsedData);
+        
+        if (!validationResult.isValid) {
+          this.logger.warn(`LLM response validation failed: ${validationResult.errors.join(', ')}`);
+        }
+        
+        // Log warnings (including dynamic entity type processing)
+        if (validationResult.warnings.length > 0) {
+          this.logger.log(`LLM response processing: ${validationResult.warnings.join(', ')}`);
+        }
 
         // Validate required fields and set defaults
         return {
@@ -255,6 +277,7 @@ export class EmailProcessorService {
       }
 
       // Fallback: Create basic structure from text response
+      this.logger.warn('No JSON found in LLM response, using fallback structure');
       return {
         category: EmailCategory.PERSONAL,
         priority: Priority.MEDIUM,
