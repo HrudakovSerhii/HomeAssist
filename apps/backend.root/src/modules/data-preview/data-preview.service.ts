@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../common/prisma/prisma.service';
-import { ProcessedEmailsQueryDto } from './dto/extracted-data-query.dto';
+import { ProcessedEmailsQueryDto } from './dto/processed-emails-query.dto';
 
 @Injectable()
 export class DataPreviewService {

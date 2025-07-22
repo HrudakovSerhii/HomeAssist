@@ -1,8 +1,8 @@
 import { apiClient } from './apiClient';
 import { API_ENDPOINTS } from '../../configuration';
 import {
-  ExtractedDataQueryDto,
-  ExtractedDataResponse,
+  ProcessedEmailsQueryDto,
+  ProcessedEmailsResponse,
   FilterOptions,
   UpdateActionItemDto,
 } from '@home-assist/api-types';
@@ -11,11 +11,11 @@ import { DashboardFilterOptions } from '../../../constants';
 
 class DataService {
   /**
-   * Fetch extracted email data with filters and pagination
+   * Fetch processed email data with filters and pagination
    */
-  async getExtractedEmailData(
-    params: ExtractedDataQueryDto
-  ): Promise<ExtractedDataResponse> {
+  async getProcessedEmailData(
+    params: ProcessedEmailsQueryDto
+  ): Promise<ProcessedEmailsResponse> {
     try {
       const queryParams = new URLSearchParams();
 
@@ -27,17 +27,17 @@ class DataService {
       });
 
       const endpoint = queryParams.toString()
-        ? `${API_ENDPOINTS.data.extracted}?${queryParams.toString()}`
-        : API_ENDPOINTS.data.extracted;
+        ? `${API_ENDPOINTS.data.processedEmails}?${queryParams.toString()}`
+        : API_ENDPOINTS.data.processedEmails;
 
-      return await apiClient.get<ExtractedDataResponse>(endpoint);
+      return await apiClient.get<ProcessedEmailsResponse>(endpoint);
     } catch (error) {
-      console.error('Error fetching extracted email data:', error);
+      console.error('Error fetching processed email data:', error);
       // Return empty data structure on error
       return {
         success: false,
         message: error as string,
-        data: [],
+        processedEmails: [],
         pagination: { total: 0, page: 1, limit: 10, totalPages: 0 },
       };
     }
@@ -99,7 +99,7 @@ class DataService {
    * Note: Export endpoint not implemented in backend yet
    */
   async exportData(
-    params: ExtractedDataQueryDto,
+    params: ProcessedEmailsQueryDto,
     format: 'csv' | 'json' = 'csv'
   ): Promise<Blob> {
     try {

@@ -5,6 +5,9 @@ export const WS_BASE_URL = import.meta.env.VITE_WS_URL || 'http://localhost:4000
 
 // API Endpoints - aligned with OpenAPI schema
 export const API_ENDPOINTS = {
+  app: {
+    status: '/', // App status endpoint
+  },
   auth: {
     login: '/auth/login',
     register: '/auth/register',
@@ -14,7 +17,7 @@ export const API_ENDPOINTS = {
     // Note: logout and refresh are not implemented in backend yet
   },
   data: {
-    extracted: '/data/extracted',
+    processedEmails: '/data/processed-emails', // Fixed: was '/data/extracted'
     filterOptions: '/data/filter-options',
     updateAction: (emailId: string, actionIndex: number) =>
       `/data/emails/${emailId}/actions/${actionIndex}`,

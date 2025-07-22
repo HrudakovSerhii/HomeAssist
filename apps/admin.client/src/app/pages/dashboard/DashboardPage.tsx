@@ -23,7 +23,8 @@ import {
 
 import type { EmailData, FilterState } from '../../types';
 import type {
-  ExtractedDataResponse,
+  ProcessedEmails,
+  ProcessedEmailsResponse,
   UserAccountsResponse,
 } from '@home-assist/api-types';
 
@@ -45,6 +46,34 @@ const initialFilters: FilterState = {
 const DashboardPage: React.FC = () => {
   const { user } = useAuth();
 
+  // Helper function to convert API response to expected format
+  const mapProcessedEmailsToEmailData = (processedEmails: ProcessedEmails[]): EmailData[] => {
+    return processedEmails.map((email) => ({
+      id: email.id,
+      email: {
+        subject: email.subject,
+        fromAddress: email.fromAddress,
+      },
+      category: email.category,
+      priority: email.priority,
+      sentiment: email.sentiment,
+      confidence: email.confidence,
+      summary: email.summary,
+      createdAt: email.createdAt,
+      entities: email.entities?.map((entity) => ({
+        entityType: entity.entityType,
+        entityValue: entity.entityValue,
+        confidence: entity.confidence,
+      })),
+      actionItems: email.actionItems?.map((action) => ({
+        actionType: action.actionType,
+        description: action.description,
+        priority: action.priority,
+        isCompleted: action.isCompleted,
+      })),
+    }));
+  };
+
   // State management
   const [filters, setFilters] = useState<FilterState>(initialFilters);
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
@@ -56,8 +85,8 @@ const DashboardPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
 
   // API hooks
-  const fetchDataApi = useApi<ExtractedDataResponse>(
-    dataService.getExtractedEmailData
+  const fetchDataApi = useApi<ProcessedEmailsResponse>(
+    dataService.getProcessedEmailData
   );
   const updateActionApi = useApi<boolean>(dataService.updateActionItem);
   const fetchAccountsApi = useApi<UserAccountsResponse>(
@@ -114,7 +143,7 @@ const DashboardPage: React.FC = () => {
       const response = await fetchDataApi.execute(params);
 
       if (response) {
-        setEmailData(response.data);
+        setEmailData(mapProcessedEmailsToEmailData(response.processedEmails));
         setTotalItems(response.pagination.total);
         setTotalPages(response.pagination.totalPages);
       }

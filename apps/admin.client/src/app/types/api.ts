@@ -82,7 +82,7 @@ export interface DataItem {
 }
 
 // DEPRECATED: All API responses now have consistent structure from '@home-assist/api-types'
-// Use specific response types like AuthResponse, ExtractedDataResponse, etc. instead
+// Use specific response types like AuthResponse, ProcessedEmailsResponse, etc. instead
 export interface ApiResponse<T = any> {
   success: boolean;
   data?: T;
