@@ -4,8 +4,6 @@ module.exports = {
     "./src/**/*.{js,jsx,ts,tsx}",
     "./index.html",
   ],
-  theme: {
-    extend: {},
-  },
-  plugins: [],
+  // Tailwind v4 uses CSS-based theme configuration with @theme directive
+  // All theme customization is done in styles.css
 } 
