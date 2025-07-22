@@ -213,7 +213,24 @@
       },
       "EntityType": {
         "type": "string",
-        "enum": ["DATE", "PERSON", "ORGANIZATION", "PRODUCT", "LOCATION", "TIME", "EVENT", "MONEY", "PHONE", "EMAIL"]
+        "enum": [
+          "PERSON",
+          "ORGANIZATION",
+          "DATE",
+          "TIME",
+          "LOCATION",
+          "EMAIL_ADDRESS",
+          "PHONE_NUMBER",
+          "URL",
+          "AMOUNT",
+          "CURRENCY",
+          "INVOICE_NUMBER",
+          "ACCOUNT_NUMBER",
+          "PRODUCT",
+          "REGION",
+          "TECHNOLOGY",
+          "DATE_RANGE"
+        ]
       },
       "ActionType": {
         "type": "string",

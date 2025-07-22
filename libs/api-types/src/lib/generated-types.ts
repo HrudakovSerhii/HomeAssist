@@ -861,7 +861,7 @@ export interface components {
         /** @enum {string} */
         Sentiment: "POSITIVE" | "NEUTRAL" | "NEGATIVE";
         /** @enum {string} */
-        EntityType: "DATE" | "PERSON" | "ORGANIZATION" | "PRODUCT" | "LOCATION" | "TIME" | "EVENT" | "MONEY" | "PHONE" | "EMAIL";
+        EntityType: "PERSON" | "ORGANIZATION" | "DATE" | "TIME" | "LOCATION" | "EMAIL_ADDRESS" | "PHONE_NUMBER" | "URL" | "AMOUNT" | "CURRENCY" | "INVOICE_NUMBER" | "ACCOUNT_NUMBER" | "PRODUCT" | "REGION" | "TECHNOLOGY" | "DATE_RANGE";
         /** @enum {string} */
         ActionType: "MEETING" | "TASK" | "FOLLOW_UP" | "REVIEW" | "NOTIFICATION" | "TRACKING" | "PREPARATION" | "PAYMENT" | "REMINDER";
         EntityExtraction: {
