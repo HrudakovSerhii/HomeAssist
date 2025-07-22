@@ -16,13 +16,13 @@ export class EmailIngestionService {
     private readonly emailGateway: EmailGateway
   ) {}
 
-  private sendProgressUpdate(userId: string, progress: EmailIngestionProgress) {
-    try {
-      this.emailGateway.sendProgressUpdate(userId, progress);
-    } catch (error) {
-      this.logger.error('Failed to send progress update', error);
-    }
-  }
+  // private sendProgressUpdate(userId: string, progress: EmailIngestionProgress) {
+  //   try {
+  //     this.emailGateway.sendProgressUpdate(userId, progress);
+  //   } catch (error) {
+  //     this.logger.error('Failed to send progress update', error);
+  //   }
+  // }
 
   async ingestUserEmails(
     userId: string,
@@ -139,6 +139,7 @@ export class EmailIngestionService {
           // });
 
           const processedEmails = [];
+
           for (let index = 0; index < emailMessages.length; index++) {
             const email = emailMessages[index];
 
@@ -203,17 +204,17 @@ export class EmailIngestionService {
             error
           );
 
-          this.sendProgressUpdate(userId, {
-            stage: 'FAILED',
-            emailAccountId: account.id,
-            error: error.message,
-            completedSteps: {
-              fetched: false,
-              stored: false,
-              processed: false,
-            },
-            progress: 0,
-          });
+          // this.sendProgressUpdate(userId, {
+          //   stage: 'FAILED',
+          //   emailAccountId: account.id,
+          //   error: error.message,
+          //   completedSteps: {
+          //     fetched: false,
+          //     stored: false,
+          //     processed: false,
+          //   },
+          //   progress: 0,
+          // });
 
           results.push({
             accountId: account.id,

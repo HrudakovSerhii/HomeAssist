@@ -3,9 +3,10 @@ import { EmailCategory } from '@prisma/client';
 
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { TemplateValidatorService } from './template-validator.service';
-import { 
-  EmailAnalysisTemplate, 
-  TemplateValidationResult 
+import {
+  EmailMessage,
+  EmailAnalysisTemplate,
+  TemplateValidationResult,
 } from '../../types/email.types';
 
 @Injectable()
@@ -90,7 +91,9 @@ export class TemplateService {
   /**
    * Validate a type-safe template
    */
-  validateEmailAnalysisTemplate(template: EmailAnalysisTemplate): TemplateValidationResult {
+  validateEmailAnalysisTemplate(
+    template: EmailAnalysisTemplate
+  ): TemplateValidationResult {
     return this.templateValidator.validateTemplate(template);
   }
 
@@ -172,7 +175,7 @@ export class TemplateService {
   /**
    * Select best template for an email based on content analysis
    */
-  async selectBestTemplate(email: any): Promise<any> {
+  async selectBestTemplate(email: EmailMessage): Promise<any> {
     // Get all active templates
     const templates = await this.getActiveTemplates();
 

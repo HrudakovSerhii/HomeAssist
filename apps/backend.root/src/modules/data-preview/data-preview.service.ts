@@ -1,13 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../common/prisma/prisma.service';
-import { ExtractedDataQueryDto } from './dto/extracted-data-query.dto';
+import { ProcessedEmailsQueryDto } from './dto/extracted-data-query.dto';
 
 @Injectable()
 export class DataPreviewService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async getExtractedEmailData(queryDto: ExtractedDataQueryDto) {
+  async getProcessedEmailData(queryDto: ProcessedEmailsQueryDto) {
     const {
       page = 1,
       limit = 10,
@@ -27,17 +27,15 @@ export class DataPreviewService {
     const skip = (page - 1) * limit;
 
     // Build where clause
-    const where: Prisma.ExtractedEmailDataWhereInput = {};
+    const where: Prisma.ProcessedEmailsWhereInput = {};
 
     // Search in email subject and summary
     if (search) {
       where.OR = [
         {
-          email: {
-            subject: {
-              contains: search,
-              mode: 'insensitive',
-            },
+          subject: {
+            contains: search,
+            mode: 'insensitive',
           },
         },
         {
@@ -91,42 +89,32 @@ export class DataPreviewService {
 
     // Date range filtering
     if (dateFrom || dateTo) {
-      where.email = {
-        ...where.email,
-        receivedAt: {
-          ...(dateFrom && { gte: new Date(dateFrom) }),
-          ...(dateTo && { lte: new Date(dateTo) }),
-        },
-      } as Prisma.EmailWhereInput;
+      where.receivedAt = {
+        ...(dateFrom && { gte: new Date(dateFrom) }),
+        ...(dateTo && { lte: new Date(dateTo) }),
+      };
     }
 
     // Build orderBy clause
-    let orderBy: Prisma.ExtractedEmailDataOrderByWithRelationInput;
-    
-    if (sortBy === 'receivedAt') {
-      orderBy = {
-        email: {
-          receivedAt: sortOrder,
-        },
-      };
-    } else {
-      orderBy = {
-        [sortBy]: sortOrder,
-      };
-    }
+    let orderBy: Prisma.ProcessedEmailsOrderByWithRelationInput = {
+      [sortBy]: sortOrder,
+    };
 
     const [data, total] = await Promise.all([
-      this.prisma.extractedEmailData.findMany({
+      this.prisma.processedEmails.findMany({
         where,
-        include: {
-          email: {
-            select: {
-              id: true,
-              subject: true,
-              fromAddress: true,
-              receivedAt: true,
-            },
-          },
+        select: {
+          id: true,
+          subject: true,
+          fromAddress: true,
+          receivedAt: true,
+          category: true,
+          priority: true,
+          sentiment: true,
+          summary: true,
+          tags: true,
+          confidence: true,
+          processingStatus: true,
           entities: {
             select: {
               id: true,
@@ -155,7 +143,7 @@ export class DataPreviewService {
         take: limit,
         skip,
       }),
-      this.prisma.extractedEmailData.count({ where }),
+      this.prisma.processedEmails.count({ where }),
     ]);
 
     return {
@@ -185,15 +173,15 @@ export class DataPreviewService {
   // Additional method for getting filter options (for frontend dropdowns)
   async getFilterOptions() {
     const [categories, priorities, sentiments, entityTypes, actionTypes] = await Promise.all([
-      this.prisma.extractedEmailData.findMany({
+      this.prisma.processedEmails.findMany({
         select: { category: true },
         distinct: ['category'],
       }),
-      this.prisma.extractedEmailData.findMany({
+      this.prisma.processedEmails.findMany({
         select: { priority: true },
         distinct: ['priority'],
       }),
-      this.prisma.extractedEmailData.findMany({
+      this.prisma.processedEmails.findMany({
         select: { sentiment: true },
         distinct: ['sentiment'],
       }),

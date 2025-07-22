@@ -14,7 +14,7 @@ enum SortOrder {
   DESC = 'desc'
 }
 
-export class ExtractedDataQueryDto {
+export class ProcessedEmailsQueryDto {
   @IsOptional()
   @Type(() => Number)
   @IsNumber()
