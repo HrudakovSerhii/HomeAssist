@@ -6,17 +6,21 @@ import { EntityValueParserService } from '../process-template/entity-value-parse
 import { PrismaService } from '../../common/prisma/prisma.service';
 
 import {
+  EmailMessage,
   ParsedLLMResponse,
+} from '../../types/email.types';
+import {
   EmailProcessingResult,
   EmailBatchProcessingResult,
-} from '../../types/email.types';
+  ProcessedEmailWithRelations,
+} from '../../types/processed-email.types';
 
 import {
   ProcessingStatus,
   EmailCategory,
   Priority,
   Sentiment,
-  Email,
+  EmailAccount,
   PromptTemplate,
 } from '@prisma/client';
 
@@ -37,29 +41,14 @@ export class EmailProcessorService {
    * Process a single email with LLM analysis
    */
   async processEmail(
-    emailId: string,
+    accountId: EmailAccount['id'],
+    email: EmailMessage,
     templateName?: string
   ): Promise<EmailProcessingResult> {
     const startTime = Date.now();
-    let email: Email | null = null;
+    let processedEmail: ProcessedEmailWithRelations | null = null;
 
     try {
-      // Get email data
-      email = await this.prisma.email.findUnique({
-        where: { id: emailId },
-        include: { attachments: true },
-      });
-
-      if (!email) {
-        throw new HttpException('Email not found', HttpStatus.NOT_FOUND);
-      }
-
-      // Update status to processing
-      await this.prisma.email.update({
-        where: { id: emailId },
-        data: { processingStatus: ProcessingStatus.PROCESSING },
-      });
-
       // Select template based on email content or use specified template
       const template = templateName
         ? await this.templateService.getTemplateByName(templateName)
@@ -80,126 +69,154 @@ export class EmailProcessorService {
         { temperature: 0.1 } // Low temperature for consistent structured output
       );
 
-      const processingTime = Date.now() - startTime;
-
-      // Save LLM response
-      const savedLLMResponse = await this.prisma.lLMResponse.create({
-        data: {
-          emailId,
-          promptTemplate: template.name,
-          rawResponse: JSON.stringify(llmResponse),
-          modelUsed: config().llm.defaultModel,
-          processingTimeMs: processingTime,
-        },
-      });
-
       // Parse and validate LLM response
       const extractedData = await this.parseLLMResponse(
         llmResponse.response || llmResponse.message?.content
       );
 
-      // Save extracted data
-      const savedExtractedData = await this.prisma.extractedEmailData.create({
-        data: {
-          emailId,
-          llmResponseId: savedLLMResponse.id,
-          category: extractedData.category,
-          priority: extractedData.priority,
-          sentiment: extractedData.sentiment,
-          summary: extractedData.summary,
-          tags: extractedData.tags || [],
-          confidence: extractedData.confidence || 0.8,
-          // Create related entities
-          entities: {
-            create:
-              extractedData.entities?.map((entity) => {
-                // Parse and serialize entity value based on type
-                const serializedValue = this.entityValueParser.serializeForDatabase(
-                  entity.type,
-                  entity.value
-                );
-                
-                return {
-                  entityType: entity.type,
-                  entityValue: serializedValue,
-                  confidence: entity.confidence || 0.8,
-                  context: entity.context,
-                };
-              }) || [],
-          },
-          // Create action items
-          actionItems: {
-            create:
-              extractedData.actionItems?.map((action) => ({
-                description: action.description,
-                actionType: action.actionType,
-                priority: action.priority,
-                dueDate: action.dueDate ? new Date(action.dueDate) : null,
-              })) || [],
-          },
-        },
-      });
-
-      // Update email status to completed
-      await this.prisma.email.update({
-        where: { id: emailId },
-        data: {
-          processingStatus: ProcessingStatus.COMPLETED,
-          isProcessed: true,
-        },
-      });
+      // Save processed email data with COMPLETED status
+      processedEmail = await this.createProcessedEmail(
+        accountId,
+        email,
+        ProcessingStatus.COMPLETED,
+        extractedData
+      );
 
       this.logger.log(`Successfully processed email: "${email.subject}"`);
 
       return {
-        emailId,
+        messageId: email.messageId,
         subject: email.subject,
         success: true,
-        extractedData: savedExtractedData,
-        processingTimeMs: processingTime,
+        processedEmail,
+        processingTimeMs: Date.now() - startTime,
       };
     } catch (error) {
-      this.logger.error(`Failed to process email ${emailId}:`, error);
+      this.logger.error(`Failed to process email "${email.subject}":`, error);
 
-      // Update email status to failed
-      await this.prisma.email.update({
-        where: { id: emailId },
-        data: { processingStatus: ProcessingStatus.FAILED },
-      });
+      try {
+        // Still create a ProcessedEmail record with FAILED status
+        processedEmail = await this.createProcessedEmail(
+          accountId,
+          email,
+          ProcessingStatus.FAILED,
+          null,
+          error.message
+        );
+      } catch (saveError) {
+        this.logger.error('Failed to save failed email processing record:', saveError);
+      }
 
       return {
-        emailId,
+        messageId: email.messageId,
         subject: email?.subject || 'Unknown',
         success: false,
         error: error.message,
+        processedEmail,
         processingTimeMs: Date.now() - startTime,
       };
     }
   }
 
   /**
+   * Create a ProcessedEmails record with the given status and optional extracted data
+   */
+  private async createProcessedEmail(
+    accountId: EmailAccount['id'],
+    email: EmailMessage,
+    status: ProcessingStatus,
+    extractedData?: ParsedLLMResponse | null,
+    errorMessage?: string
+  ): Promise<ProcessedEmailWithRelations> {
+    const data: any = {
+      messageId: email.messageId,
+      subject: email.subject,
+      fromAddress: email.from,
+      toAddresses: email.to,
+      ccAddresses: email.cc || [],
+      bccAddresses: email.bcc || [],
+      receivedAt: email.date,
+      bodyText: email.bodyText,
+      bodyHtml: email.bodyHtml,
+      emailAccountId: accountId,
+      processingStatus: status,
+    };
+
+    if (extractedData) {
+      // If we have extracted data, populate the fields
+      data.category = extractedData.category;
+      data.priority = extractedData.priority;
+      data.sentiment = extractedData.sentiment;
+      data.summary = extractedData.summary;
+      data.tags = extractedData.tags || [];
+      data.confidence = extractedData.confidence || 0.8;
+
+      // Create related entities
+      data.entities = {
+        create:
+          extractedData.entities?.map((entity) => {
+            const serializedValue = this.entityValueParser.serializeForDatabase(
+              entity.type,
+              entity.value
+            );
+
+            return {
+              entityType: entity.type,
+              entityValue: serializedValue,
+              confidence: entity.confidence || 0.8,
+              context: entity.context,
+            };
+          }) || [],
+      };
+
+      // Create action items
+      data.actionItems = {
+        create:
+          extractedData.actionItems?.map((action) => ({
+            description: action.description,
+            actionType: action.actionType,
+            priority: action.priority,
+            dueDate: action.dueDate ? new Date(action.dueDate) : null,
+          })) || [],
+      };
+    } else {
+      // Failed processing - use default values
+      data.category = EmailCategory.PERSONAL;
+      data.priority = Priority.MEDIUM;
+      data.sentiment = Sentiment.NEUTRAL;
+      data.summary = errorMessage || 'Processing failed';
+      data.tags = [];
+      data.confidence = 0.0;
+      data.entities = { create: [] };
+      data.actionItems = { create: [] };
+    }
+
+    return await this.prisma.processedEmails.create({
+      data,
+      include: {
+        entities: true,
+        actionItems: true,
+      },
+    });
+  }
+
+  /**
    * Process multiple emails in batch
+   * Note: This method now processes EmailMessage objects directly from IMAP
    */
   async processEmailBatch(
-    limit: number = 5
+    accountId: EmailAccount['id'],
+    emails: EmailMessage[],
+    templateName?: string
   ): Promise<EmailBatchProcessingResult> {
-    const pendingEmails: Email[] = await this.prisma.email.findMany({
-      where: {
-        processingStatus: ProcessingStatus.PENDING,
-        isProcessed: false,
-      },
-      take: limit,
-      orderBy: { receivedAt: 'asc' },
-    });
-
     const results: EmailBatchProcessingResult = {
       processed: 0,
       failed: 0,
       results: [],
     };
 
-    for (const email of pendingEmails) {
-      const result = await this.processEmail(email.id);
+    for (const email of emails) {
+      const result = await this.processEmail(accountId, email, templateName);
       results.results.push(result);
 
       if (result.success) {
@@ -219,19 +236,19 @@ export class EmailProcessorService {
   /**
    * Generate LLM prompt from email and template
    */
-  private generatePrompt(email: Email, template: PromptTemplate): string {
+  private generatePrompt(email: EmailMessage, template: PromptTemplate): string {
     let prompt = template.template;
 
     // Replace template variables
     prompt = prompt.replace(/\{\{subject}}/g, email.subject || '');
-    prompt = prompt.replace(/\{\{fromAddress}}/g, email.fromAddress || '');
+    prompt = prompt.replace(/\{\{fromAddress}}/g, email.from || '');
     prompt = prompt.replace(
       /\{\{bodyText}}/g,
       email.bodyText || email.bodyHtml || ''
     );
     prompt = prompt.replace(
       /\{\{receivedAt}}/g,
-      email.receivedAt?.toISOString() || ''
+      email.date?.toISOString() || ''
     );
 
     return prompt;
@@ -248,15 +265,23 @@ export class EmailProcessorService {
         const parsedData = JSON.parse(jsonMatch[0]);
 
         // Validate LLM response against schema types with dynamic entity handling
-        const validationResult = await this.templateService.validateLLMResponse(parsedData);
-        
+        const validationResult = await this.templateService.validateLLMResponse(
+          parsedData
+        );
+
         if (!validationResult.isValid) {
-          this.logger.warn(`LLM response validation failed: ${validationResult.errors.join(', ')}`);
+          this.logger.warn(
+            `LLM response validation failed: ${validationResult.errors.join(
+              ', '
+            )}`
+          );
         }
-        
+
         // Log warnings (including dynamic entity type processing)
         if (validationResult.warnings.length > 0) {
-          this.logger.log(`LLM response processing: ${validationResult.warnings.join(', ')}`);
+          this.logger.log(
+            `LLM response processing: ${validationResult.warnings.join(', ')}`
+          );
         }
 
         // Validate required fields and set defaults
@@ -277,7 +302,9 @@ export class EmailProcessorService {
       }
 
       // Fallback: Create basic structure from text response
-      this.logger.warn('No JSON found in LLM response, using fallback structure');
+      this.logger.warn(
+        'No JSON found in LLM response, using fallback structure'
+      );
       return {
         category: EmailCategory.PERSONAL,
         priority: Priority.MEDIUM,
@@ -332,17 +359,14 @@ export class EmailProcessorService {
   }
 
   /**
-   * Retry failed email processing
+   * Retry failed email processing by re-processing from Gmail/IMAP
+   * Note: This now requires re-fetching emails from the email service
    */
   async retryFailedEmails(
-    limit: number = 5
+    accountId: EmailAccount['id'],
+    failedEmails: EmailMessage[],
+    templateName?: string
   ): Promise<EmailBatchProcessingResult> {
-    const failedEmails = await this.prisma.email.findMany({
-      where: { processingStatus: ProcessingStatus.FAILED },
-      take: limit,
-      orderBy: { updatedAt: 'asc' },
-    });
-
     const results: EmailBatchProcessingResult = {
       processed: 0,
       failed: 0,
@@ -350,7 +374,18 @@ export class EmailProcessorService {
     };
 
     for (const email of failedEmails) {
-      const result = await this.processEmail(email.id);
+      // First, delete the failed processed email record if it exists
+      try {
+        await this.prisma.processedEmails.delete({
+          where: { messageId: email.messageId },
+        });
+      } catch (error) {
+        // Record might not exist, continue
+      }
+
+      // Reprocess the email
+      const result = await this.processEmail(accountId, email, templateName);
+
       results.results.push(result);
 
       if (result.success) {

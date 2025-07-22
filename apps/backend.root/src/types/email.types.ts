@@ -1,29 +1,32 @@
 import {
-  Email,
   EmailCategory,
-  EmailAttachment,
   Priority,
   Sentiment,
   EntityType,
   ActionType,
   ActionItem,
-  ExtractedEmailData,
+  ProcessedEmails,
   EntityExtraction,
   PromptTemplate,
-  LLMResponse,
   ProcessingStatus,
 } from '@prisma/client';
 
-export type EmailCreateInput = Omit<Email, 'id' | 'createdAt' | 'updatedAt'> & {
-  attachments?: EmailAttachmentCreateInput[];
-};
-
-export type EmailAttachmentCreateInput = Omit<
-  EmailAttachment,
-  'id' | 'emailId' | 'createdAt'
->;
+export interface EmailMessage {
+  uid: number;
+  messageId: string;
+  subject: string;
+  from: string;
+  to: string[];
+  cc: string[];
+  bcc: string[];
+  date: Date;
+  bodyText?: string;
+  bodyHtml?: string;
+  flags: string[];
+}
 
 export type ParsedGmailMessage = {
+  messageId: string;
   subject: string;
   fromAddress: string;
   toAddresses: string[];
@@ -32,27 +35,21 @@ export type ParsedGmailMessage = {
   receivedAt: Date;
   bodyText?: string;
   bodyHtml?: string;
-  attachments?: EmailAttachmentCreateInput[];
 };
+
+export type ProcessedEmailCreateInput = Omit<
+  ProcessedEmails,
+  'id' | 'createdAt' | 'updatedAt'
+>;
 
 // Application-specific derived types
-export type EmailWithRelations = Email & {
-  attachments: EmailAttachment[];
-  llmResponses: LLMResponse[];
-  extractedData: ExtractedEmailData[];
+export type ProcessedEmailWithRelations = ProcessedEmails & {
+  entities: EntityExtraction[];
+  actionItems: ActionItem[];
 };
 
-export type EmailWithFullRelations = Email & {
-  attachments: EmailAttachment[];
-  llmResponses: LLMResponse[];
-  extractedData: (ExtractedEmailData & {
-    entities: EntityExtraction[];
-    actionItems: ActionItem[];
-  })[];
-};
-
-export type EmailSummary = Pick<
-  Email,
+export type ProcessedEmailSummary = Pick<
+  ProcessedEmails,
   'id' | 'subject' | 'fromAddress' | 'receivedAt' | 'processingStatus'
 >;
 
@@ -60,7 +57,7 @@ export type EmailProcessingResult = {
   emailId: string;
   subject: string;
   success: boolean;
-  extractedData?: ExtractedEmailData;
+  processedEmail?: ProcessedEmailWithRelations;
   error?: string;
   processingTimeMs?: number;
 };
@@ -95,8 +92,8 @@ export type EmailFilters = {
   search?: string;
 };
 
-export type EmailPaginatedResult = {
-  emails: EmailWithFullRelations[];
+export type ProcessedEmailsPaginatedResult = {
+  processedEmails: ProcessedEmailWithRelations[];
   pagination: {
     page: number;
     limit: number;

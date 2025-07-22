@@ -47,10 +47,11 @@ model Session {
 }
 
 // Email Processing Models
-model Email {
+
+model ProcessedEmails {
   id               String           @id @default(uuid())
-  messageId        String           @unique // Gmail message ID
-  emailAccountId   String // Link to email account
+  messageId        String           @unique // Gmail message ID for reference
+  emailAccountId   String           // Link to email account
   subject          String
   fromAddress      String
   toAddresses      String[]
@@ -59,117 +60,63 @@ model Email {
   receivedAt       DateTime
   bodyText         String?
   bodyHtml         String?
-  isProcessed      Boolean          @default(false)
   processingStatus ProcessingStatus @default(PENDING)
+  category         EmailCategory
+  priority         Priority
+  sentiment        Sentiment
+  summary          String
+  tags             String[]         @default([])
+  confidence       Float
   createdAt        DateTime         @default(now())
   updatedAt        DateTime         @updatedAt
 
-  // Relations
-  emailAccount  EmailAccount         @relation(fields: [emailAccountId], references: [id], onDelete: Cascade)
-  attachments   EmailAttachment[]
-  llmResponses  LLMResponse[]
-  extractedData ExtractedEmailData[]
+  emailAccount EmailAccount       @relation(fields: [emailAccountId], references: [id], onDelete: Cascade)
+  entities     EntityExtraction[]
+  actionItems  ActionItem[]
 
   @@index([messageId])
   @@index([emailAccountId])
-  @@index([isProcessed])
   @@index([processingStatus])
-  @@index([receivedAt])
-  @@map("emails")
-}
-
-model EmailAttachment {
-  id          String   @id @default(uuid())
-  emailId     String
-  filename    String
-  contentType String
-  size        Int
-  filePath    String?
-  createdAt   DateTime @default(now())
-
-  email Email @relation(fields: [emailId], references: [id], onDelete: Cascade)
-
-  @@index([emailId])
-  @@map("email_attachments")
-}
-
-model LLMResponse {
-  id               String   @id @default(uuid())
-  emailId          String
-  promptTemplate   String
-  rawResponse      String
-  processedAt      DateTime @default(now())
-  modelUsed        String
-  tokensUsed       Int?
-  processingTimeMs Int
-  createdAt        DateTime @default(now())
-
-  email         Email                @relation(fields: [emailId], references: [id], onDelete: Cascade)
-  extractedData ExtractedEmailData[]
-
-  @@index([emailId])
-  @@map("llm_responses")
-}
-
-model ExtractedEmailData {
-  id            String        @id @default(uuid())
-  emailId       String
-  llmResponseId String
-  category      EmailCategory
-  priority      Priority
-  sentiment     Sentiment
-  summary       String
-  tags          String[]      @default([])
-  confidence    Float
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
-
-  email       Email              @relation(fields: [emailId], references: [id], onDelete: Cascade)
-  llmResponse LLMResponse        @relation(fields: [llmResponseId], references: [id], onDelete: Cascade)
-  entities    EntityExtraction[]
-  actionItems ActionItem[]
-
-  @@index([emailId])
   @@index([category])
   @@index([priority])
-  @@map("extracted_email_data")
+  @@map("processed_emails")
 }
 
 model EntityExtraction {
-  id              String     @id @default(uuid())
-  extractedDataId String
-  entityType      EntityType
-  entityValue     String
-  confidence      Float
-  startPosition   Int?
-  endPosition     Int?
-  context         String?
-  createdAt       DateTime   @default(now())
+  id                String     @id @default(uuid())
+  processedEmailId  String
+  entityType        EntityType
+  entityValue       String
+  confidence        Float
+  startPosition     Int?
+  endPosition       Int?
+  context           String?
+  createdAt         DateTime   @default(now())
 
-  extractedData ExtractedEmailData @relation(fields: [extractedDataId], references: [id], onDelete: Cascade)
+  processedEmail ProcessedEmails @relation(fields: [processedEmailId], references: [id], onDelete: Cascade)
 
-  @@index([extractedDataId])
+  @@index([processedEmailId])
   @@index([entityType])
   @@map("entity_extractions")
 }
 
 model ActionItem {
-  id              String     @id @default(uuid())
-  extractedDataId String
-  description     String
-  actionType      ActionType
-  dueDate         DateTime?
-  priority        Priority
-  isCompleted     Boolean    @default(false)
-  completedAt     DateTime?
-  assignedTo      String?
-  relatedEntityId String?
-  createdAt       DateTime   @default(now())
-  updatedAt       DateTime   @updatedAt
+  id               String     @id @default(uuid())
+  processedEmailId String
+  description      String
+  actionType       ActionType
+  dueDate          DateTime?
+  priority         Priority
+  isCompleted      Boolean    @default(false)
+  completedAt      DateTime?
+  assignedTo       String?
+  relatedEntityId  String?
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
 
-  extractedData ExtractedEmailData @relation(fields: [extractedDataId], references: [id], onDelete: Cascade)
+  processedEmail ProcessedEmails @relation(fields: [processedEmailId], references: [id], onDelete: Cascade)
 
-  @@index([extractedDataId])
+  @@index([processedEmailId])
   @@index([isCompleted])
   @@index([actionType])
   @@map("action_items")
@@ -295,8 +242,8 @@ model EmailAccount {
   updatedAt             DateTime      @updatedAt
 
   // Relations
-  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  emails Email[]
+  user            User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  processedEmails ProcessedEmails[]
 
   @@index([userId])
   @@index([email])
