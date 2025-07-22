@@ -1,7 +1,11 @@
 import { Injectable, HttpException, HttpStatus } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
-import { ProcessingStatus } from '.prisma/client';
+import { ProcessingStatus, EmailCategory, Priority } from '.prisma/client';
 import { EmailIngestionService } from './email-ingestion.service';
+import { 
+  ProcessedEmailWithRelations,
+  ProcessedEmailsPaginatedResult 
+} from '../../types/processed-email.types';
 
 @Injectable()
 export class EmailService {
@@ -34,45 +38,47 @@ export class EmailService {
   }
 
   /**
-   * Get emails with filtering and pagination
+   * Get processed emails with filtering and pagination
    */
-  async getEmails(params: {
+  async getProcessedEmails(params: {
     page?: number;
     limit?: number;
-    processed?: boolean;
-    category?: string;
-    priority?: string;
-  }) {
-    const { page = 1, limit = 10, processed } = params;
+    processingStatus?: ProcessingStatus;
+    category?: EmailCategory;
+    priority?: Priority;
+  }): Promise<ProcessedEmailsPaginatedResult> {
+    const { page = 1, limit = 10, processingStatus, category, priority } = params;
     const skip = (page - 1) * limit;
 
     const where: any = {};
 
-    if (processed !== undefined) {
-      where.isProcessed = processed;
+    if (processingStatus !== undefined) {
+      where.processingStatus = processingStatus;
     }
 
-    const emails = await this.prisma.email.findMany({
+    if (category !== undefined) {
+      where.category = category;
+    }
+
+    if (priority !== undefined) {
+      where.priority = priority;
+    }
+
+    const processedEmails = await this.prisma.processedEmails.findMany({
       where,
       include: {
-        attachments: true,
-        extractedData: {
-          include: {
-            entities: true,
-            actionItems: true,
-          },
-        },
-        llmResponses: true,
+        entities: true,
+        actionItems: true,
       },
       orderBy: { receivedAt: 'desc' },
       skip,
       take: limit,
     });
 
-    const total = await this.prisma.email.count({ where });
+    const total = await this.prisma.processedEmails.count({ where });
 
     return {
-      emails,
+      processedEmails,
       pagination: {
         page,
         limit,
@@ -83,63 +89,74 @@ export class EmailService {
   }
 
   /**
-   * Get email by ID with all related data
+   * Get processed email by ID with all related data
    */
-  async getEmailById(id: string) {
-    const email = await this.prisma.email.findUnique({
+  async getProcessedEmailById(id: string): Promise<ProcessedEmailWithRelations> {
+    const processedEmail = await this.prisma.processedEmails.findUnique({
       where: { id },
       include: {
-        attachments: true,
-        extractedData: {
-          include: {
-            entities: true,
-            actionItems: true,
-          },
-        },
-        llmResponses: true,
+        entities: true,
+        actionItems: true,
       },
     });
 
-    if (!email) {
-      throw new HttpException('Email not found', HttpStatus.NOT_FOUND);
+    if (!processedEmail) {
+      throw new HttpException('Processed email not found', HttpStatus.NOT_FOUND);
     }
 
-    return email;
+    return processedEmail;
   }
 
   /**
-   * Update email processing status
+   * Get processed email by message ID with all related data
    */
-  async updateEmailStatus(id: string, status: ProcessingStatus) {
-    return this.prisma.email.update({
+  async getProcessedEmailByMessageId(messageId: string): Promise<ProcessedEmailWithRelations> {
+    const processedEmail = await this.prisma.processedEmails.findUnique({
+      where: { messageId },
+      include: {
+        entities: true,
+        actionItems: true,
+      },
+    });
+
+    if (!processedEmail) {
+      throw new HttpException('Processed email not found', HttpStatus.NOT_FOUND);
+    }
+
+    return processedEmail;
+  }
+
+  /**
+   * Update processed email status
+   */
+  async updateProcessedEmailStatus(id: string, status: ProcessingStatus) {
+    return this.prisma.processedEmails.update({
       where: { id },
       data: {
         processingStatus: status,
-        isProcessed: status === ProcessingStatus.COMPLETED,
         updatedAt: new Date(),
       },
     });
   }
 
   /**
-   * Get pending emails for processing
+   * Get pending processed emails for processing (failed ones that need retry)
    */
-  async getPendingEmails(limit: number = 10) {
-    return this.prisma.email.findMany({
+  async getPendingProcessedEmails(limit: number = 10) {
+    return this.prisma.processedEmails.findMany({
       where: {
-        processingStatus: ProcessingStatus.PENDING,
-        isProcessed: false,
+        processingStatus: ProcessingStatus.FAILED,
       },
-      orderBy: { receivedAt: 'asc' },
+      orderBy: { updatedAt: 'asc' },
       take: limit,
     });
   }
 
   /**
-   * Delete email and all related data
+   * Delete processed email and all related data
    */
-  async deleteEmail(id: string) {
-    return this.prisma.email.delete({
+  async deleteProcessedEmail(id: string) {
+    return this.prisma.processedEmails.delete({
       where: { id },
     });
   }

@@ -4,6 +4,8 @@ import * as mailParser from 'mailparser';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { EncryptionService } from '../encrypt/encryption.service';
 
+import { EmailMessage } from '../../types/email.types';
+
 export interface EmailConnectionConfig {
   host: string;
   port: number;
@@ -14,20 +16,6 @@ export interface EmailConnectionConfig {
   };
 }
 
-export interface EmailMessage {
-  uid: number;
-  messageId: string;
-  subject: string;
-  from: string;
-  to: string[];
-  cc: string[];
-  bcc: string[];
-  date: Date;
-  bodyText?: string;
-  bodyHtml?: string;
-  flags: string[];
-}
-
 @Injectable()
 export class ImapService {
   private readonly logger = new Logger(ImapService.name);
@@ -35,13 +23,15 @@ export class ImapService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly encryptionService: EncryptionService,
+    private readonly encryptionService: EncryptionService
   ) {}
 
   /**
    * Get connection configuration for different email providers
    */
-  private getProviderConfig(accountType: string): Partial<EmailConnectionConfig> {
+  private getProviderConfig(
+    accountType: string
+  ): Partial<EmailConnectionConfig> {
     const configs: Record<string, Partial<EmailConnectionConfig>> = {
       GMAIL: {
         host: 'imap.gmail.com',
@@ -76,11 +66,16 @@ export class ImapService {
     }
 
     if (!account.isActive) {
-      throw new HttpException('Email account is disabled', HttpStatus.FORBIDDEN);
+      throw new HttpException(
+        'Email account is disabled',
+        HttpStatus.FORBIDDEN
+      );
     }
 
     // Decrypt app password
-    const decryptedPassword = await this.encryptionService.decryptPassword(account.appPassword);
+    const decryptedPassword = await this.encryptionService.decryptPassword(
+      account.appPassword
+    );
     const providerConfig = this.getProviderConfig(account.accountType);
 
     const config: EmailConnectionConfig = {
@@ -94,7 +89,7 @@ export class ImapService {
     };
 
     this.logger.log(
-      `Connecting to IMAP server: ${config.host}:${config.port} for ${account.email}`,
+      `Connecting to IMAP server: ${config.host}:${config.port} for ${account.email}`
     );
 
     const client = new ImapFlow({
@@ -147,7 +142,7 @@ export class ImapService {
    * Test connection to email account
    */
   async testConnection(
-    accountId: string,
+    accountId: string
   ): Promise<{ success: boolean; message: string; stats?: any }> {
     try {
       const client = await this.getConnection(accountId);
@@ -168,7 +163,10 @@ export class ImapService {
         stats,
       };
     } catch (error) {
-      this.logger.error(`IMAP connection test failed for account ${accountId}:`, error);
+      this.logger.error(
+        `IMAP connection test failed for account ${accountId}:`,
+        error
+      );
       return {
         success: false,
         message: `Connection failed: ${error.message}`,
@@ -182,7 +180,7 @@ export class ImapService {
   async testConnectionWithCredentials(
     email: string,
     appPassword: string,
-    accountType: string = 'GMAIL',
+    accountType: string = 'GMAIL'
   ): Promise<{ success: boolean; message: string; stats?: any }> {
     try {
       const providerConfig = this.getProviderConfig(accountType);
@@ -197,7 +195,9 @@ export class ImapService {
         },
       };
 
-      this.logger.log(`Testing IMAP connection: ${config.host}:${config.port} for ${email}`);
+      this.logger.log(
+        `Testing IMAP connection: ${config.host}:${config.port} for ${email}`
+      );
 
       const client = new ImapFlow({
         ...config,
@@ -247,7 +247,7 @@ export class ImapService {
       before?: Date;
       limit?: number;
       folder?: string;
-    } = {},
+    } = {}
   ): Promise<EmailMessage[]> {
     this.logger.log(`Starting fetchAndProcessEmails for account ${accountId}`);
     this.logger.log(`Options: ${JSON.stringify(options)}`);
@@ -276,9 +276,15 @@ export class ImapService {
         const startSeq = Math.max(1, totalEmails - limit + 1);
         const endSeq = totalEmails;
 
-        this.logger.log(`Fetching emails from sequence ${startSeq}:${endSeq} (latest ${limit} emails)`);
+        this.logger.log(
+          `Fetching emails from sequence ${startSeq}:${endSeq} (latest ${limit} emails)`
+        );
 
-        for (let seq = endSeq; seq >= startSeq && processedEmails.length < limit; seq--) {
+        for (
+          let seq = endSeq;
+          seq >= startSeq && processedEmails.length < limit;
+          seq--
+        ) {
           try {
             this.logger.log(`Processing email sequence ${seq}`);
 
@@ -293,23 +299,29 @@ export class ImapService {
               continue;
             }
 
-            // Parse email using mailparser (proven reliable)
+            // Parse email using mail-parser (proven reliable)
             const mail = await mailParser.simpleParser(message.source as any);
 
-            this.logger.log(`Email parsed successfully - Subject: "${mail.subject || '(No Subject)'}"`);
+            this.logger.log(
+              `Email parsed successfully - Subject: "${
+                mail.subject || '(No Subject)'
+              }"`
+            );
 
             // Extract addresses safely
             const extractAddresses = (field: any): string[] => {
               if (!field) return [];
               if (Array.isArray(field)) {
-                return field.map((addr: any) => addr.address || '').filter(Boolean);
+                return field
+                  .map((addr: any) => addr.address || '')
+                  .filter(Boolean);
               }
               return field.address ? [field.address] : [];
             };
 
             const fromAddress = extractAddresses(mail.from)[0] || '';
 
-            // Convert mailparser result to our EmailMessage format
+            // Convert mail-parser result to our EmailMessage format
             const emailMessage: EmailMessage = {
               uid: message.uid,
               messageId: mail.messageId || `${message.uid}-${Date.now()}`,
@@ -325,24 +337,36 @@ export class ImapService {
             };
 
             processedEmails.push(emailMessage);
-            this.logger.log(`Successfully processed email UID ${message.uid}: "${emailMessage.subject}"`);
 
+            this.logger.log(
+              `Successfully processed email UID ${message.uid}: "${emailMessage.subject}"`
+            );
           } catch (emailError) {
-            this.logger.error(`Failed to process email sequence ${seq}:`, emailError);
+            this.logger.error(
+              `Failed to process email sequence ${seq}:`,
+              emailError
+            );
             // Continue with other emails even if one fails
           }
         }
 
-        this.logger.log(`Successfully processed ${processedEmails.length}/${limit} emails`);
+        this.logger.log(
+          `Successfully processed ${processedEmails.length}/${limit} emails`
+        );
 
         return processedEmails;
-
       } finally {
         mailbox.release();
       }
     } catch (error) {
-      this.logger.error(`Failed to fetch and process emails for account ${accountId}:`, error);
-      throw new HttpException(`Failed to fetch and process emails: ${error.message}`, HttpStatus.BAD_REQUEST);
+      this.logger.error(
+        `Failed to fetch and process emails for account ${accountId}:`,
+        error
+      );
+      throw new HttpException(
+        `Failed to fetch and process emails: ${error.message}`,
+        HttpStatus.BAD_REQUEST
+      );
     }
   }
 
@@ -350,21 +374,27 @@ export class ImapService {
    * Get list of folders/mailboxes
    */
   async getFolders(
-    accountId: string,
+    accountId: string
   ): Promise<{ name: string; path: string; specialUse?: string }[]> {
     try {
       const client = await this.getConnection(accountId);
 
       const mailboxes = await client.list();
 
-      return mailboxes.map(mailbox => ({
+      return mailboxes.map((mailbox) => ({
         name: mailbox.name,
         path: mailbox.path,
         specialUse: mailbox.specialUse,
       }));
     } catch (error) {
-      this.logger.error(`Failed to get folders for account ${accountId}:`, error);
-      throw new HttpException(`Failed to get folders: ${error.message}`, HttpStatus.BAD_REQUEST);
+      this.logger.error(
+        `Failed to get folders for account ${accountId}:`,
+        error
+      );
+      throw new HttpException(
+        `Failed to get folders: ${error.message}`,
+        HttpStatus.BAD_REQUEST
+      );
     }
   }
 
@@ -383,13 +413,18 @@ export class ImapService {
    * Close all connections
    */
   async closeAllConnections(): Promise<void> {
-    const promises = Array.from(this.connections.entries()).map(async ([accountId, connection]) => {
-      try {
-        await connection.logout();
-      } catch (error) {
-        this.logger.warn(`Error closing connection for account ${accountId}:`, error);
+    const promises = Array.from(this.connections.entries()).map(
+      async ([accountId, connection]) => {
+        try {
+          await connection.logout();
+        } catch (error) {
+          this.logger.warn(
+            `Error closing connection for account ${accountId}:`,
+            error
+          );
+        }
       }
-    });
+    );
 
     await Promise.all(promises);
     this.connections.clear();
