@@ -3,7 +3,7 @@ import { EmailGateway, EmailIngestionProgress } from './email.gateway';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { ImapService } from '../imap/imap.service';
 import { EmailProcessorService } from './email-processor.service';
-import { EmailIngestionResults } from '../../types/email.types';
+import { EmailIngestionResults } from '../../types/processed-email.types';
 
 @Injectable()
 export class EmailIngestionService {
