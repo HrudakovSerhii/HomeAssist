@@ -1,81 +1,145 @@
-import { EmailCategory } from '../../../types/email.types';
+import {
+  EmailCategory,
+  ActionType,
+  Priority,
+  Sentiment,
+} from '@prisma/client';
 
-export const MEETING_PROCESSOR_TEMPLATE = {
+// Type-safe template interface
+export interface MeetingProcessorTemplate {
+  name: string;
+  description: string;
+  categories: EmailCategory[];
+  template: string;
+  expectedOutputSchema: {
+    type: 'object';
+    required: string[];
+    properties: Record<string, any>;
+  };
+  exampleResponse: {
+    category: EmailCategory;
+    priority: Priority;
+    sentiment: Sentiment;
+    summary: string;
+    actionItems: Array<{
+      actionType: ActionType;
+      description: string;
+      priority: Priority;
+      dueDate?: string;
+    }>;
+    tags: string[];
+    confidence: number;
+  };
+}
+
+export const MEETING_PROCESSOR_TEMPLATE: MeetingProcessorTemplate = {
   name: 'meeting-processor',
-  description: 'Specialized processor for meeting and appointment emails',
+  description: 'Specialized processor for meeting and appointment emails with scheduling-focused analysis',
   categories: [EmailCategory.APPOINTMENT, EmailCategory.WORK],
-  template: `Analyze this meeting/appointment email and extract scheduling information:
+  template: `Analyze this meeting/appointment email focusing on scheduling and preparation needs:
+
+1. **Category**: Must be ${EmailCategory.APPOINTMENT} or ${EmailCategory.WORK}
+2. **Priority**: Based on meeting urgency, attendees, and timeline
+3. **Sentiment**: Usually ${Sentiment.NEUTRAL} or ${Sentiment.POSITIVE} for meetings
+4. **Summary**: Include date, time, attendees, topic, location (max 100 words)
+5. **Smart Scheduling Actions**:
+
+**Meeting Action Logic:**
+- CONFIRMED meetings → "schedule_meeting" (MEDIUM priority)
+- URGENT meetings (same day/tomorrow) → "schedule_meeting" + "reply_required" (HIGH/URGENT priority)
+- TENTATIVE invitations → "reply_required" (HIGH priority)
+- CANCELLED meetings → "archive" (LOW priority)
+- RESCHEDULING requests → "reply_required" (HIGH priority)
 
 Email Subject: {{subject}}
 From: {{fromAddress}}
 Content: {{bodyText}}
 
-Extract the following information in JSON format:
+Respond in JSON format only:
 {
   "category": "APPOINTMENT",
   "priority": "HIGH",
-  "sentiment": "NEUTRAL",
-  "summary": "Meeting summary with key details and participants",
-  "entities": [
-    {"type": "DATE", "value": "2024-01-20", "confidence": 0.9},
-    {"type": "TIME", "value": "2:00 PM", "confidence": 0.9},
-    {"type": "PERSON", "value": "John Smith", "confidence": 0.8},
-    {"type": "LOCATION", "value": "Conference Room A", "confidence": 0.7}
-  ],
+  "sentiment": "POSITIVE",
+  "summary": "Project kickoff meeting scheduled for January 25th at 2:00 PM with development team in Conference Room A",
   "actionItems": [
     {
       "actionType": "SCHEDULE_MEETING",
-      "description": "Add meeting to calendar",
+      "description": "Add team meeting to calendar",
+      "priority": "HIGH",
+      "dueDate": "2024-01-25"
+    },
+    {
+      "actionType": "REPLY_REQUIRED",
+      "description": "Confirm attendance for project kickoff",
       "priority": "HIGH"
     }
   ],
-  "tags": ["meeting", "calendar", "appointment"],
-  "confidence": 0.85
+  "tags": ["meeting", "project-kickoff", "team"],
+  "confidence": 0.9
 }`,
+
+  exampleResponse: {
+    category: EmailCategory.APPOINTMENT,
+    priority: Priority.HIGH,
+    sentiment: Sentiment.POSITIVE,
+    summary: 'Project kickoff meeting scheduled for January 25th at 2:00 PM with development team in Conference Room A',
+    actionItems: [
+      {
+        actionType: ActionType.SCHEDULE_MEETING,
+        description: 'Add team meeting to calendar',
+        priority: Priority.HIGH,
+        dueDate: '2024-01-25',
+      },
+      {
+        actionType: ActionType.REPLY_REQUIRED,
+        description: 'Confirm attendance for project kickoff',
+        priority: Priority.HIGH,
+      },
+    ],
+    tags: ['meeting', 'project-kickoff', 'team'],
+    confidence: 0.9,
+  },
+
   expectedOutputSchema: {
     type: 'object',
     required: ['category', 'priority', 'sentiment', 'summary'],
     properties: {
-      category: { 
+      category: {
         type: 'string',
-        enum: ['PERSONAL', 'WORK', 'MARKETING', 'NEWSLETTER', 'SUPPORT', 'NOTIFICATION', 'INVOICE', 'RECEIPT', 'APPOINTMENT']
+        enum: Object.values(EmailCategory),
       },
-      priority: { 
+      priority: {
         type: 'string',
-        enum: ['LOW', 'MEDIUM', 'HIGH', 'URGENT']
+        enum: Object.values(Priority),
       },
-      sentiment: { 
+      sentiment: {
         type: 'string',
-        enum: ['POSITIVE', 'NEGATIVE', 'NEUTRAL', 'MIXED']
+        enum: Object.values(Sentiment),
       },
-      summary: { type: 'string', maxLength: 500 },
-      entities: {
-        type: 'array',
-        items: {
-          type: 'object',
-          properties: {
-            type: { type: 'string' },
-            value: { type: 'string' },
-            confidence: { type: 'number', minimum: 0, maximum: 1 }
-          }
-        }
-      },
+      summary: { type: 'string', maxLength: 200 },
       actionItems: {
         type: 'array',
         items: {
           type: 'object',
           properties: {
-            actionType: { type: 'string' },
+            actionType: {
+              type: 'string',
+              enum: Object.values(ActionType),
+            },
             description: { type: 'string' },
-            priority: { type: 'string' }
-          }
-        }
+            priority: {
+              type: 'string',
+              enum: Object.values(Priority),
+            },
+            dueDate: { type: 'string' },
+          },
+        },
       },
       tags: {
         type: 'array',
-        items: { type: 'string' }
+        items: { type: 'string' },
       },
-      confidence: { type: 'number', minimum: 0, maximum: 1 }
-    }
-  }
+      confidence: { type: 'number', minimum: 0, maximum: 1 },
+    },
+  },
 }; 

@@ -1,10 +1,14 @@
 export const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000';
+  import.meta.env.VITE_API_BASE_URL || 'http://localhost:4200';
 export const API_PREFIX = import.meta.env.VITE_API_PREFIX || 'api';
-export const WS_BASE_URL = import.meta.env.VITE_WS_URL || 'http://localhost:4000';
+export const WS_BASE_URL =
+  import.meta.env.VITE_WS_URL || 'http://localhost:4200';
 
 // API Endpoints - aligned with OpenAPI schema
 export const API_ENDPOINTS = {
+  app: {
+    status: '/', // App status endpoint
+  },
   auth: {
     login: '/auth/login',
     register: '/auth/register',
@@ -14,7 +18,7 @@ export const API_ENDPOINTS = {
     // Note: logout and refresh are not implemented in backend yet
   },
   data: {
-    extracted: '/data/extracted',
+    processedEmails: '/data/processed-emails', // Fixed: was '/data/extracted'
     filterOptions: '/data/filter-options',
     updateAction: (emailId: string, actionIndex: number) =>
       `/data/emails/${emailId}/actions/${actionIndex}`,
@@ -33,7 +37,7 @@ export const API_ENDPOINTS = {
   ws: {
     baseUrl: WS_BASE_URL,
     email: {
-      ingestion: '/email-ingestion',
+      ingestion: '/email-ingestion-v2',
     },
   },
 } as const;

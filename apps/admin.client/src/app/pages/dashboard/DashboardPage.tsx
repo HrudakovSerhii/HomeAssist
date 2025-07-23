@@ -1,15 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth, useApi, useEmailIngestion } from '../../hooks';
 
-import {
-  PageContainer,
-  AlertMessage,
-  EmailIngestionProgressView,
-} from '../../components';
+import { PageContainer, AlertMessage } from '../../components';
 
 import { dataService, authService } from '../../services';
 import { DashboardFilterOptions } from '../../../../constants';
-import { API_ENDPOINTS } from '../../../configuration';
+import { API_ENDPOINTS, APP_ENDPOINTS } from '../../../configuration';
 
 import {
   DashboardHeader,
@@ -23,7 +19,7 @@ import {
 
 import type { EmailData, FilterState } from '../../types';
 import type {
-  ExtractedDataResponse,
+  ProcessedEmailsResponse,
   UserAccountsResponse,
 } from '@home-assist/api-types';
 
@@ -52,12 +48,13 @@ const DashboardPage: React.FC = () => {
   const [emailData, setEmailData] = useState<EmailData[]>([]);
   const [totalItems, setTotalItems] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  // Remove these - we'll use the hook's state instead
+  // const [loading, setLoading] = useState(true);
+  // const [error, setError] = useState<string | null>(null);
 
-  // API hooks
-  const fetchDataApi = useApi<ExtractedDataResponse>(
-    dataService.getExtractedEmailData
+  // API hooks with proper typing
+  const fetchDataApi = useApi<ProcessedEmailsResponse>(
+    dataService.getProcessedEmailData
   );
   const updateActionApi = useApi<boolean>(dataService.updateActionItem);
   const fetchAccountsApi = useApi<UserAccountsResponse>(
@@ -68,10 +65,10 @@ const DashboardPage: React.FC = () => {
   const {
     isIngesting,
     error: ingestionError,
-    progress: ingestionProgress,
+    // progress: ingestionProgress,
     startIngestion,
     clearError: clearIngestionError,
-    clearProgress: clearIngestionProgress,
+    // clearProgress: clearIngestionProgress,
   } = useEmailIngestion({
     limit: 5,
     folder: 'INBOX',
@@ -79,7 +76,7 @@ const DashboardPage: React.FC = () => {
       fetchData();
     },
     onError: (errorMessage) => {
-      setError(errorMessage);
+      console.error('Email ingestion error:', errorMessage);
     },
   });
 
@@ -104,25 +101,15 @@ const DashboardPage: React.FC = () => {
     };
   }, [filters, currentPage]);
 
-  // Fetch dashboard data
+  // Simplified fetch function using hook's state
   const fetchData = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError('');
+    const params = getApiParams();
+    const response = await fetchDataApi.execute(params);
 
-      const params = getApiParams();
-      const response = await fetchDataApi.execute(params);
-
-      if (response) {
-        setEmailData(response.data);
-        setTotalItems(response.pagination.total);
-        setTotalPages(response.pagination.totalPages);
-      }
-    } catch (err) {
-      setError('Failed to load dashboard data. Please try again.');
-      console.error('Dashboard data fetch error:', err);
-    } finally {
-      setLoading(false);
+    if (response) {
+      setEmailData(response.data);
+      setTotalItems(response.pagination.total);
+      setTotalPages(response.pagination.totalPages);
     }
   }, [getApiParams, fetchDataApi.execute]);
 
@@ -204,15 +191,9 @@ const DashboardPage: React.FC = () => {
         })
       );
     } catch (err) {
-      setError('Failed to update action item. Please try again.');
       console.error('Action update error:', err);
     }
   };
-
-  const handleCloseProgress = useCallback(() => {
-    clearIngestionProgress();
-    clearIngestionError();
-  }, [clearIngestionProgress, clearIngestionError]);
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
@@ -240,11 +221,11 @@ const DashboardPage: React.FC = () => {
   if (userAccounts.length === 0) {
     return (
       <PageContainer>
-        <DashboardEmptyState addAccountPath={API_ENDPOINTS.auth.addAccount} />
+        <DashboardEmptyState addAccountPath={APP_ENDPOINTS.addAccount} />
       </PageContainer>
     );
   }
-  console.log(ingestionError);
+
   return (
     <PageContainer>
       <div className="space-y-6">
@@ -258,12 +239,20 @@ const DashboardPage: React.FC = () => {
         <DashboardAccountsInfo accounts={userAccounts} />
 
         {/* Error Messages */}
-        {error && (
+        {fetchDataApi.error && (
           <AlertMessage
             type="error"
-            message={error}
+            message={fetchDataApi.error}
             show={true}
-            onClose={() => setError('')}
+            onClose={() => fetchDataApi.reset()}
+          />
+        )}
+        {updateActionApi.error && (
+          <AlertMessage
+            type="error"
+            message={updateActionApi.error}
+            show={true}
+            onClose={() => updateActionApi.reset()}
           />
         )}
         {ingestionError && (
@@ -277,7 +266,7 @@ const DashboardPage: React.FC = () => {
 
         <DashboardFilters
           filters={filters}
-          loading={loading}
+          loading={fetchDataApi.loading} // Use fetchDataApi.loading
           totalItems={totalItems}
           emailDataLength={emailData.length}
           onFilterChange={handleFilterChange}
@@ -287,7 +276,7 @@ const DashboardPage: React.FC = () => {
 
         <DashboardTable
           emailData={emailData}
-          loading={loading}
+          loading={fetchDataApi.loading} // Use fetchDataApi.loading
           expandedRows={expandedRows}
           filters={filters}
           onToggleRowExpansion={toggleRowExpansion}
@@ -295,21 +284,16 @@ const DashboardPage: React.FC = () => {
           updateActionLoading={updateActionApi.loading}
         />
 
-        {!loading && emailData.length > 0 && (
-          <DashboardPagination
-            currentPage={currentPage}
-            totalPages={totalPages}
-            totalItems={totalItems}
-            loading={loading}
-            onPageChange={handlePageChange}
-          />
-        )}
-
-        <EmailIngestionProgressView
-          isOpen={!!ingestionProgress}
-          onClose={handleCloseProgress}
-          progress={ingestionProgress}
-        />
+        {!fetchDataApi.loading &&
+          emailData.length > 0 && ( // Use fetchDataApi.loading
+            <DashboardPagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              totalItems={totalItems}
+              loading={fetchDataApi.loading} // Use fetchDataApi.loading
+              onPageChange={handlePageChange}
+            />
+          )}
       </div>
     </PageContainer>
   );

@@ -15,10 +15,8 @@ export interface FilterState {
 
 export interface EmailData {
   id: string;
-  email: {
-    subject: string;
-    fromAddress: string;
-  };
+  subject: string;
+  fromAddress: string;
   category: string;
   priority: string;
   sentiment: string;
@@ -54,4 +52,4 @@ export interface FilterOptions {
   sentiments: string[];
   entityTypes: string[];
   actionTypes: string[];
-} 
+}

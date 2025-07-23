@@ -236,6 +236,10 @@
         "type": "string",
         "enum": ["MEETING", "TASK", "FOLLOW_UP", "REVIEW", "NOTIFICATION", "TRACKING", "PREPARATION", "PAYMENT", "REMINDER"]
       },
+      "ProcessingStatus": {
+        "type": "string",
+        "enum": ["PENDING", "PROCESSING", "COMPLETED", "FAILED", "SKIPPED"]
+      },
       "EntityExtraction": {
         "type": "object",
         "properties": {
@@ -313,7 +317,7 @@
         },
         "required": ["id", "description", "actionType", "priority", "isCompleted", "createdAt", "updatedAt"]
       },
-      "Email": {
+      "ProcessedEmails": {
         "type": "object",
         "properties": {
           "id": {
@@ -322,6 +326,10 @@
           },
           "messageId": {
             "type": "string"
+          },
+          "emailAccountId": {
+            "type": "string",
+            "format": "uuid"
           },
           "subject": {
             "type": "string"
@@ -363,30 +371,8 @@
             "type": "string",
             "nullable": true
           },
-          "isProcessed": {
-            "type": "boolean"
-          },
-          "createdAt": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "updatedAt": {
-            "type": "string",
-            "format": "date-time"
-          }
-        },
-        "required": ["id", "messageId", "subject", "fromAddress", "toAddresses", "receivedAt", "isProcessed", "createdAt", "updatedAt"]
-      },
-      "ExtractedEmailData": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "emailId": {
-            "type": "string",
-            "format": "uuid"
+          "processingStatus": {
+            "$ref": "#/components/schemas/ProcessingStatus"
           },
           "category": {
             "$ref": "#/components/schemas/EmailCategory"
@@ -419,9 +405,6 @@
             "type": "string",
             "format": "date-time"
           },
-          "email": {
-            "$ref": "#/components/schemas/Email"
-          },
           "entities": {
             "type": "array",
             "items": {
@@ -435,9 +418,9 @@
             }
           }
         },
-        "required": ["id", "emailId", "category", "priority", "sentiment", "summary", "tags", "confidence", "createdAt", "updatedAt", "email", "entities", "actionItems"]
+        "required": ["id", "messageId", "emailAccountId", "subject", "fromAddress", "toAddresses", "receivedAt", "processingStatus", "category", "priority", "sentiment", "summary", "tags", "confidence", "createdAt", "updatedAt", "entities", "actionItems"]
       },
-      "ExtractedDataQueryDto": {
+      "ProcessedEmailsQueryDto": {
         "type": "object",
         "properties": {
           "page": {
@@ -516,26 +499,72 @@
         },
         "required": ["total", "page", "limit", "totalPages"]
       },
-      "ExtractedDataResponse": {
+      "ProcessedEmailsResponse": {
         "type": "object",
         "properties": {
-          "success": {
-            "type": "boolean"
-          },
-          "message": {
-            "type": "string"
-          },
           "data": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/ExtractedEmailData"
+              "$ref": "#/components/schemas/ProcessedEmails"
             }
           },
           "pagination": {
             "$ref": "#/components/schemas/Pagination"
+          },
+          "filters": {
+            "$ref": "#/components/schemas/ProcessedEmailsFilters"
           }
         },
-        "required": ["success", "data", "pagination"]
+        "required": ["data", "pagination", "filters"]
+      },
+      "ProcessedEmailsFilters": {
+        "type": "object",
+        "properties": {
+          "search": {
+            "type": "string",
+            "nullable": true
+          },
+          "category": {
+            "type": "string",
+            "nullable": true
+          },
+          "priority": {
+            "type": "string",
+            "nullable": true
+          },
+          "sentiment": {
+            "type": "string",
+            "nullable": true
+          },
+          "entityType": {
+            "type": "string",
+            "nullable": true
+          },
+          "actionType": {
+            "type": "string",
+            "nullable": true
+          },
+          "dateFrom": {
+            "type": "string",
+            "nullable": true
+          },
+          "dateTo": {
+            "type": "string",
+            "nullable": true
+          },
+          "minConfidence": {
+            "type": "number",
+            "nullable": true
+          },
+          "sortBy": {
+            "type": "string"
+          },
+          "sortOrder": {
+            "type": "string",
+            "enum": ["asc", "desc"]
+          }
+        },
+        "required": ["sortBy", "sortOrder"]
       },
       "FilterOptions": {
         "type": "object",
@@ -1287,10 +1316,10 @@
         }
       }
     },
-    "/data/extracted": {
+    "/data/processed-emails": {
       "get": {
         "tags": ["Data"],
-        "summary": "Get extracted email data with filtering and pagination",
+        "summary": "Get processed emails with filtering and pagination",
         "parameters": [
           {
             "name": "page",
@@ -1399,11 +1428,11 @@
         ],
         "responses": {
           "200": {
-            "description": "Extracted email data",
+            "description": "Processed emails data",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ExtractedDataResponse"
+                  "$ref": "#/components/schemas/ProcessedEmailsResponse"
                 }
               }
             }

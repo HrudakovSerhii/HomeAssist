@@ -20,15 +20,14 @@ export type EmailAccount = components['schemas']['EmailAccount'];
 export type UserAccountsResponse =
   components['schemas']['UserAccountsResponse'];
 
-export type EmailData = components['schemas']['ExtractedEmailData'];
-export type Email = components['schemas']['Email'];
+export type ProcessedEmails = components['schemas']['ProcessedEmails'];
 export type EntityExtraction = components['schemas']['EntityExtraction'];
 export type ActionItem = components['schemas']['ActionItem'];
 
-export type ExtractedDataQueryDto =
-  components['schemas']['ExtractedDataQueryDto'];
-export type ExtractedDataResponse =
-  components['schemas']['ExtractedDataResponse'];
+export type ProcessedEmailsQueryDto =
+  components['schemas']['ProcessedEmailsQueryDto'];
+export type ProcessedEmailsResponse =
+  components['schemas']['ProcessedEmailsResponse'];
 export type FilterOptions = components['schemas']['FilterOptions'];
 export type Pagination = components['schemas']['Pagination'];
 export type UpdateActionItemDto = components['schemas']['UpdateActionItemDto'];
@@ -45,6 +44,7 @@ export type Priority = components['schemas']['Priority'];
 export type Sentiment = components['schemas']['Sentiment'];
 export type EntityType = components['schemas']['EntityType'];
 export type ActionType = components['schemas']['ActionType'];
+export type ProcessingStatus = components['schemas']['ProcessingStatus'];
 
 // DTOs
 export type IngestEmailsDto = components['schemas']['IngestEmailsDto'];
@@ -63,10 +63,10 @@ export type EmailIngestionStage = components['schemas']['EmailIngestionStage'];
 export type ApiPaths = keyof paths;
 
 // Extract request/response types for specific endpoints
-export type GetExtractedDataParams =
-  paths['/data/extracted']['get']['parameters']['query'];
-export type GetExtractedDataResponse =
-  paths['/data/extracted']['get']['responses']['200']['content']['application/json'];
+export type GetProcessedEmailsParams =
+  paths['/data/processed-emails']['get']['parameters']['query'];
+export type GetProcessedEmailsResponse =
+  paths['/data/processed-emails']['get']['responses']['200']['content']['application/json'];
 
 export type LoginRequest =
   paths['/auth/login']['post']['requestBody']['content']['application/json'];

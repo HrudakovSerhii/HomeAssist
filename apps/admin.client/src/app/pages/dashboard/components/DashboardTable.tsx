@@ -1,12 +1,16 @@
 import React from 'react';
 import { LoadingSpinner } from '../../../components';
-import { 
-  DASHBOARD_COLUMNS, 
-  DASHBOARD_MESSAGES, 
-  DASHBOARD_LABELS, 
-  EMPTY_STATE_EMOJI 
+import {
+  DASHBOARD_COLUMNS,
+  DASHBOARD_MESSAGES,
+  DASHBOARD_LABELS,
+  EMPTY_STATE_EMOJI,
 } from '../constants';
-import { getPriorityColor, getSentimentColor, getCategoryColor } from '../utils';
+import {
+  getPriorityColor,
+  getSentimentColor,
+  getCategoryColor,
+} from '../utils';
 import type { EmailData, FilterState } from '../../../types';
 
 interface DashboardTableProps {
@@ -15,7 +19,11 @@ interface DashboardTableProps {
   expandedRows: Set<string>;
   filters: FilterState;
   onToggleRowExpansion: (id: string) => void;
-  onActionToggle: (emailId: string, actionIndex: number, isCompleted: boolean) => void;
+  onActionToggle: (
+    emailId: string,
+    actionIndex: number,
+    isCompleted: boolean
+  ) => void;
   updateActionLoading: boolean;
 }
 
@@ -79,10 +87,10 @@ export const DashboardTable: React.FC<DashboardTableProps> = ({
                   <td className="px-6 py-4">
                     <div className="max-w-xs">
                       <div className="text-sm font-medium text-gray-900 truncate">
-                        {email.email.subject}
+                        {email.subject}
                       </div>
                       <div className="text-sm text-gray-500 truncate">
-                        {email.email.fromAddress}
+                        {email.fromAddress}
                       </div>
                     </div>
                   </td>
@@ -242,4 +250,4 @@ export const DashboardTable: React.FC<DashboardTableProps> = ({
       </div>
     </div>
   );
-}; 
+};

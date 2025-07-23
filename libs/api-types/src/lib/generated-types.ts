@@ -344,14 +344,14 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/data/extracted": {
+    "/data/processed-emails": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /** Get extracted email data with filtering and pagination */
+        /** Get processed emails with filtering and pagination */
         get: {
             parameters: {
                 query?: {
@@ -375,13 +375,13 @@ export interface paths {
             };
             requestBody?: never;
             responses: {
-                /** @description Extracted email data */
+                /** @description Processed emails data */
                 200: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["ExtractedDataResponse"];
+                        "application/json": components["schemas"]["ProcessedEmailsResponse"];
                     };
                 };
                 /** @description Bad request */
@@ -864,6 +864,8 @@ export interface components {
         EntityType: "PERSON" | "ORGANIZATION" | "DATE" | "TIME" | "LOCATION" | "EMAIL_ADDRESS" | "PHONE_NUMBER" | "URL" | "AMOUNT" | "CURRENCY" | "INVOICE_NUMBER" | "ACCOUNT_NUMBER" | "PRODUCT" | "REGION" | "TECHNOLOGY" | "DATE_RANGE";
         /** @enum {string} */
         ActionType: "MEETING" | "TASK" | "FOLLOW_UP" | "REVIEW" | "NOTIFICATION" | "TRACKING" | "PREPARATION" | "PAYMENT" | "REMINDER";
+        /** @enum {string} */
+        ProcessingStatus: "PENDING" | "PROCESSING" | "COMPLETED" | "FAILED" | "SKIPPED";
         EntityExtraction: {
             /** Format: uuid */
             id: string;
@@ -891,10 +893,12 @@ export interface components {
             /** Format: date-time */
             updatedAt: string;
         };
-        Email: {
+        ProcessedEmails: {
             /** Format: uuid */
             id: string;
             messageId: string;
+            /** Format: uuid */
+            emailAccountId: string;
             subject: string;
             /** Format: email */
             fromAddress: string;
@@ -905,17 +909,7 @@ export interface components {
             receivedAt: string;
             bodyText?: string | null;
             bodyHtml?: string | null;
-            isProcessed: boolean;
-            /** Format: date-time */
-            createdAt: string;
-            /** Format: date-time */
-            updatedAt: string;
-        };
-        ExtractedEmailData: {
-            /** Format: uuid */
-            id: string;
-            /** Format: uuid */
-            emailId: string;
+            processingStatus: components["schemas"]["ProcessingStatus"];
             category: components["schemas"]["EmailCategory"];
             priority: components["schemas"]["Priority"];
             sentiment: components["schemas"]["Sentiment"];
@@ -926,11 +920,10 @@ export interface components {
             createdAt: string;
             /** Format: date-time */
             updatedAt: string;
-            email: components["schemas"]["Email"];
             entities: components["schemas"]["EntityExtraction"][];
             actionItems: components["schemas"]["ActionItem"][];
         };
-        ExtractedDataQueryDto: {
+        ProcessedEmailsQueryDto: {
             /** @default 1 */
             page: number;
             /** @default 10 */
@@ -963,11 +956,24 @@ export interface components {
             limit: number;
             totalPages: number;
         };
-        ExtractedDataResponse: {
-            success: boolean;
-            message?: string;
-            data: components["schemas"]["ExtractedEmailData"][];
+        ProcessedEmailsResponse: {
+            data: components["schemas"]["ProcessedEmails"][];
             pagination: components["schemas"]["Pagination"];
+            filters: components["schemas"]["ProcessedEmailsFilters"];
+        };
+        ProcessedEmailsFilters: {
+            search?: string | null;
+            category?: string | null;
+            priority?: string | null;
+            sentiment?: string | null;
+            entityType?: string | null;
+            actionType?: string | null;
+            dateFrom?: string | null;
+            dateTo?: string | null;
+            minConfidence?: number | null;
+            sortBy: string;
+            /** @enum {string} */
+            sortOrder: "asc" | "desc";
         };
         FilterOptions: {
             categories: components["schemas"]["EmailCategory"][];

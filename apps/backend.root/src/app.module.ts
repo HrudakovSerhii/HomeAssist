@@ -7,6 +7,7 @@ import { DataPreviewModule } from './modules/data-preview/data-preview.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { LLMModule } from './modules/llm/llm.module';
 import { EmailModule } from './modules/email/email.module';
+import { ProcessTemplateModule } from './modules/process-template/process-template.module';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { EmailModule } from './modules/email/email.module';
       envFilePath: `.env.${process.env.NODE_ENV || 'development'}`,
     }),
     PrismaModule,
+    ProcessTemplateModule,
     EmailModule,
     HealthModule,
     DataPreviewModule,
