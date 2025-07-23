@@ -50,4 +50,3 @@ vitest.config.*.timestamp*
 /.env.production
 /.env.test
 /env.md
-/tasks/*
