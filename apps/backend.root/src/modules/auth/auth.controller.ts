@@ -16,6 +16,7 @@ import {
 } from 'class-validator';
 import { AuthService } from './auth.service';
 import { ImapService } from '../imap/imap.service';
+import { TemplateService } from '../process-template/template.service';
 
 import type {
   UserAccountsResponse,
@@ -85,7 +86,8 @@ class TestImapDto implements ApiTestImapDto {
 export class AuthController {
   constructor(
     private readonly authService: AuthService,
-    private readonly imapService: ImapService
+    private readonly imapService: ImapService,
+    private readonly templateService: TemplateService
   ) {}
 
   /**
@@ -158,6 +160,47 @@ export class AuthController {
         success: false,
         message: `IMAP connection test failed: ${error.message}`,
       };
+    }
+  }
+
+  /**
+   * Seed default templates
+   * Note: This should ideally be protected with admin role in production
+   */
+  @Get('seed-templates')
+  async seedTemplates() {
+    try {
+      // Add basic protection for production
+      if (process.env.NODE_ENV === 'production') {
+        throw new HttpException(
+          'Template seeding is not allowed in production',
+          HttpStatus.FORBIDDEN
+        );
+      }
+
+      const results = await this.templateService.seedDefaultTemplates();
+
+      // Process results for API response
+      const summary = {
+        created: results.filter((r) => r.created).length,
+        skipped: results.filter((r) => r.skipped).length,
+        errors: results.filter((r) => r.error).length,
+        details: results,
+      };
+
+      return {
+        success: summary.errors === 0,
+        message: `Template seeding completed: ${summary.created} created, ${summary.skipped} skipped, ${summary.errors} errors`,
+        data: summary,
+      };
+    } catch (error) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      throw new HttpException(
+        `Template seeding failed: ${error.message}`,
+        HttpStatus.INTERNAL_SERVER_ERROR
+      );
     }
   }
 

@@ -154,53 +154,54 @@ export class DataPreviewService {
         total,
         totalPages: Math.ceil(total / limit),
       },
-              filters: {
-          search,
-          category,
-          priority,
-          sentiment,
-          entityType,
-          actionType,
-          dateFrom,
-          dateTo,
-          minConfidence,
-          sortBy,
-          sortOrder,
-        },
+      filters: {
+        search,
+        category,
+        priority,
+        sentiment,
+        entityType,
+        actionType,
+        dateFrom,
+        dateTo,
+        minConfidence,
+        sortBy,
+        sortOrder,
+      },
     };
   }
 
   // Additional method for getting filter options (for frontend dropdowns)
   async getFilterOptions() {
-    const [categories, priorities, sentiments, entityTypes, actionTypes] = await Promise.all([
-      this.prisma.processedEmails.findMany({
-        select: { category: true },
-        distinct: ['category'],
-      }),
-      this.prisma.processedEmails.findMany({
-        select: { priority: true },
-        distinct: ['priority'],
-      }),
-      this.prisma.processedEmails.findMany({
-        select: { sentiment: true },
-        distinct: ['sentiment'],
-      }),
-      this.prisma.entityExtraction.findMany({
-        select: { entityType: true },
-        distinct: ['entityType'],
-      }),
-      this.prisma.actionItem.findMany({
-        select: { actionType: true },
-        distinct: ['actionType'],
-      }),
-    ]);
+    const [categories, priorities, sentiments, entityTypes, actionTypes] =
+      await Promise.all([
+        this.prisma.processedEmails.findMany({
+          select: { category: true },
+          distinct: ['category'],
+        }),
+        this.prisma.processedEmails.findMany({
+          select: { priority: true },
+          distinct: ['priority'],
+        }),
+        this.prisma.processedEmails.findMany({
+          select: { sentiment: true },
+          distinct: ['sentiment'],
+        }),
+        this.prisma.entityExtraction.findMany({
+          select: { entityType: true },
+          distinct: ['entityType'],
+        }),
+        this.prisma.actionItem.findMany({
+          select: { actionType: true },
+          distinct: ['actionType'],
+        }),
+      ]);
 
     return {
-      categories: categories.map(c => c.category),
-      priorities: priorities.map(p => p.priority),
-      sentiments: sentiments.map(s => s.sentiment),
-      entityTypes: entityTypes.map(e => e.entityType),
-      actionTypes: actionTypes.map(a => a.actionType),
+      categories: categories.map((c) => c.category),
+      priorities: priorities.map((p) => p.priority),
+      sentiments: sentiments.map((s) => s.sentiment),
+      entityTypes: entityTypes.map((e) => e.entityType),
+      actionTypes: actionTypes.map((a) => a.actionType),
     };
   }
-} 
+}

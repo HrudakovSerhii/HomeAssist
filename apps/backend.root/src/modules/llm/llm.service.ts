@@ -11,7 +11,8 @@ export class LLMService {
     model: string,
     target: 'local' | 'remote' = 'local',
     options?: Record<string, any>,
-    history?: { role: string; content: string }[]
+    history?: { role: string; content: string }[],
+    cleanContext?: boolean
   ): Promise<any> {
     // Basic prompt safety validation
     const trimmedPrompt = prompt.trim();
@@ -30,11 +31,11 @@ export class LLMService {
     const url = `${baseUrl.replace(/\/$/, '')}/api/chat`;
 
     console.log(
-      `[LLMService] Using Ollama URL: ${url} (target: ${target}, model: ${model})`
+      `[LLMService] Using Ollama URL: ${url} (target: ${target}, model: ${model}, cleanContext: ${cleanContext})`
     );
 
     const messages = [
-      ...(history || []),
+      ...(cleanContext ? [] : (history || [])),
       { role: 'user', content: trimmedPrompt },
     ];
     try {

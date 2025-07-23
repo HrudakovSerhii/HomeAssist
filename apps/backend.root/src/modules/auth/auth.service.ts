@@ -1,6 +1,5 @@
 import { Injectable, Logger, HttpException, HttpStatus } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
-import { ImapService } from '../imap/imap.service';
 import { EncryptionService } from '../encrypt/encryption.service';
 import { randomUUID } from 'crypto';
 
@@ -20,8 +19,7 @@ export class AuthService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly encryptionService: EncryptionService,
-    private readonly imapService: ImapService
+    private readonly encryptionService: EncryptionService
   ) {}
 
   /**
@@ -206,21 +204,6 @@ export class AuthService {
         );
       }
 
-      // Test IMAP connection before storing
-      const connectionTest =
-        await this.imapService.testConnectionWithCredentials(
-          addAccountDto.email,
-          addAccountDto.appPassword,
-          addAccountDto.accountType || 'GMAIL'
-        );
-
-      if (!connectionTest.success) {
-        throw new HttpException(
-          `IMAP connection test failed: ${connectionTest.message}`,
-          HttpStatus.BAD_REQUEST
-        );
-      }
-
       // Encrypt the app password before storing
       const encryptedPassword = await this.encryptionService.encryptPassword(
         addAccountDto.appPassword
@@ -249,7 +232,6 @@ export class AuthService {
           accountType: account.accountType,
           isActive: account.isActive,
         },
-        connectionStats: connectionTest.stats,
         message: 'Email account added successfully',
       };
     } catch (error) {

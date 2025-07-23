@@ -12,9 +12,9 @@ export class EmailIngestionService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly imapService: ImapService,
-    private readonly emailProcessor: EmailProcessorService,
-    private readonly emailGateway: EmailGateway
-  ) {}
+    private readonly emailProcessor: EmailProcessorService
+  ) // private readonly emailGateway: EmailGateway
+  {}
 
   // private sendProgressUpdate(userId: string, progress: EmailIngestionProgress) {
   //   try {
@@ -62,7 +62,7 @@ export class EmailIngestionService {
           //   progress: 0,
           // });
 
-          // Test connection
+          // Test connection with timeout
           const connectionTest = await this.imapService.testConnection(
             account.id
           );
@@ -71,7 +71,7 @@ export class EmailIngestionService {
             throw new Error(`Failed to connect: ${connectionTest.message}`);
           }
 
-          // Fetch emails
+          // Fetch emails with timeout
           // this.sendProgressUpdate(userId, {
           //   stage: 'FETCHING',
           //   emailAccountId: account.id,
@@ -83,13 +83,19 @@ export class EmailIngestionService {
           //   progress: 20,
           // });
 
-          const emailMessages = await this.imapService.fetchAndProcessEmails(
-            account.id,
-            {
+          const emailMessages = (await Promise.race([
+            this.imapService.fetchAndProcessEmails(account.id, {
               folder,
               limit,
-            }
-          );
+            }),
+            new Promise(
+              (_, reject) =>
+                setTimeout(
+                  () => reject(new Error('Email fetch timeout')),
+                  120000
+                ) // 2 minutes
+            ),
+          ])) as any[];
 
           // Store emails
           // this.sendProgressUpdate(userId, {
@@ -143,11 +149,43 @@ export class EmailIngestionService {
           for (let index = 0; index < emailMessages.length; index++) {
             const email = emailMessages[index];
 
-            const processed = await this.emailProcessor.processEmail(
-              account.id,
-              email,
-              templateName
-            );
+            try {
+              // Add timeout for email processing (includes LLM calls)
+              const processed = (await Promise.race([
+                this.emailProcessor.processEmail(
+                  account.id,
+                  email,
+                  templateName
+                ),
+                new Promise(
+                  (_, reject) =>
+                    setTimeout(
+                      () =>
+                        reject(
+                          new Error(
+                            `Processing timeout for email: ${email.subject}`
+                          )
+                        ),
+                      60000
+                    ) // 1 minute per email
+                ),
+              ])) as any;
+
+              processedEmails.push(processed);
+            } catch (processingError) {
+              this.logger.warn(
+                `Failed to process email "${email.subject}": ${processingError.message}`
+              );
+
+              // Add failed email to results
+              processedEmails.push({
+                messageId: email.messageId,
+                subject: email.subject,
+                success: false,
+                error: processingError.message,
+                processedEmail: null,
+              });
+            }
 
             // this.sendProgressUpdate(userId, {
             //   stage: 'PROCESSING',
@@ -165,8 +203,6 @@ export class EmailIngestionService {
             //     from: email.fromAddress,
             //   },
             // });
-
-            processedEmails.push(processed);
           }
 
           // Complete
@@ -183,18 +219,22 @@ export class EmailIngestionService {
           //   processedEmails: emails.length,
           // });
 
-          // results.push({
-          //   accountId: account.id,
-          //   fetched: emails.length,
-          //   stored: storedEmails.length,
-          //   processed: processedEmails.length,
-          //   failed: 0,
-          //   emails: processedEmails.map((e: EmailProcessingResult) => ({
-          //     id: e.emailId,
-          //     subject: e.subject,
-          //     processed: e.success,
-          //   })),
-          // });
+          // Calculate success/failure counts
+          const successful = processedEmails.filter((e) => e.success);
+          const failed = processedEmails.filter((e) => !e.success);
+
+          results.push({
+            accountId: account.id,
+            fetched: emailMessages.length,
+            stored: emailMessages.length, // We're no longer storing separately
+            processed: successful.length,
+            failed: failed.length,
+            emails: processedEmails.map((e: any) => ({
+              id: e.processedEmail?.id || e.messageId,
+              subject: e.subject,
+              processed: e.success,
+            })),
+          });
 
           // Close IMAP connection
           await this.imapService.closeConnection(account.id);

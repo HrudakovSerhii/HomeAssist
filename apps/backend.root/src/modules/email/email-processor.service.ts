@@ -5,10 +5,7 @@ import { TemplateService } from '../process-template/template.service';
 import { EntityValueParserService } from '../process-template/entity-value-parser.service';
 import { PrismaService } from '../../common/prisma/prisma.service';
 
-import {
-  EmailMessage,
-  ParsedLLMResponse,
-} from '../../types/email.types';
+import { EmailMessage, ParsedLLMResponse } from '../../types/email.types';
 import {
   EmailProcessingResult,
   EmailBatchProcessingResult,
@@ -49,6 +46,26 @@ export class EmailProcessorService {
     let processedEmail: ProcessedEmailWithRelations | null = null;
 
     try {
+      // Check if email has already been processed
+      const existingProcessedEmail = await this.prisma.processedEmails.findUnique({
+        where: { messageId: email.messageId },
+        include: {
+          entities: true,
+          actionItems: true,
+        },
+      });
+
+      if (existingProcessedEmail) {
+        this.logger.log(`Email already processed, skipping: "${email.subject}" (messageId: ${email.messageId})`);
+        
+        return {
+          messageId: email.messageId,
+          subject: email.subject,
+          success: true,
+          processedEmail: existingProcessedEmail,
+          processingTimeMs: Date.now() - startTime,
+        };
+      }
       // Select template based on email content or use specified template
       const template = templateName
         ? await this.templateService.getTemplateByName(templateName)
@@ -66,7 +83,9 @@ export class EmailProcessorService {
         prompt,
         config().llm.defaultModel,
         'local',
-        { temperature: 0.1 } // Low temperature for consistent structured output
+        { temperature: 0.1 }, // Low temperature for consistent structured output
+        undefined,
+        true
       );
 
       // Parse and validate LLM response
@@ -104,7 +123,10 @@ export class EmailProcessorService {
           error.message
         );
       } catch (saveError) {
-        this.logger.error('Failed to save failed email processing record:', saveError);
+        this.logger.error(
+          'Failed to save failed email processing record:',
+          saveError
+        );
       }
 
       return {
@@ -201,6 +223,26 @@ export class EmailProcessorService {
   }
 
   /**
+   * Check which emails have already been processed
+   */
+  async getAlreadyProcessedMessageIds(messageIds: string[]): Promise<string[]> {
+    if (messageIds.length === 0) return [];
+
+    const existingEmails = await this.prisma.processedEmails.findMany({
+      where: {
+        messageId: {
+          in: messageIds,
+        },
+      },
+      select: {
+        messageId: true,
+      },
+    });
+
+    return existingEmails.map(email => email.messageId);
+  }
+
+  /**
    * Process multiple emails in batch
    * Note: This method now processes EmailMessage objects directly from IMAP
    */
@@ -214,6 +256,14 @@ export class EmailProcessorService {
       failed: 0,
       results: [],
     };
+
+    // Log batch start info
+    const messageIds = emails.map(email => email.messageId);
+    const alreadyProcessed = await this.getAlreadyProcessedMessageIds(messageIds);
+    
+    this.logger.log(
+      `Starting batch processing: ${emails.length} emails (${alreadyProcessed.length} already processed)`
+    );
 
     for (const email of emails) {
       const result = await this.processEmail(accountId, email, templateName);
@@ -236,7 +286,10 @@ export class EmailProcessorService {
   /**
    * Generate LLM prompt from email and template
    */
-  private generatePrompt(email: EmailMessage, template: PromptTemplate): string {
+  private generatePrompt(
+    email: EmailMessage,
+    template: PromptTemplate
+  ): string {
     let prompt = template.template;
 
     // Replace template variables
@@ -317,6 +370,7 @@ export class EmailProcessorService {
       };
     } catch (error) {
       this.logger.error('Failed to parse LLM response:', error);
+      this.logger.error('LLM response:', response);
       // Return fallback structure
       return {
         category: EmailCategory.PERSONAL,

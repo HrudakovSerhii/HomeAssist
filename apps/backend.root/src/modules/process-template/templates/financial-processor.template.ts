@@ -6,7 +6,7 @@ import {
 } from '@prisma/client';
 
 // Type-safe template interface
-export interface InvoiceProcessorTemplate {
+export interface FinancialProcessorTemplate {
   name: string;
   description: string;
   categories: EmailCategory[];
@@ -32,24 +32,24 @@ export interface InvoiceProcessorTemplate {
   };
 }
 
-export const INVOICE_PROCESSOR_TEMPLATE: InvoiceProcessorTemplate = {
-  name: 'invoice-processor',
-  description: 'Specialized processor for invoice and receipt emails with payment-focused analysis',
-  categories: [EmailCategory.INVOICE, EmailCategory.RECEIPT],
-  template: `Analyze this invoice/receipt email focusing on payment status and financial actions:
+export const FINANCIAL_PROCESSOR_TEMPLATE: FinancialProcessorTemplate = {
+  name: 'financial-processor',
+  description: 'Specialized processor for financial news, market updates, and investment-related emails',
+  categories: [EmailCategory.NEWSLETTER, EmailCategory.NOTIFICATION, EmailCategory.WORK],
+  template: `Analyze this financial/investment email focusing on market relevance and action needs:
 
-1. **Category**: Must be ${EmailCategory.INVOICE} or ${EmailCategory.RECEIPT}
-2. **Priority**: Based on payment status and due dates
-3. **Sentiment**: Usually ${Sentiment.NEUTRAL} unless payment issues detected
-4. **Summary**: Include amount, vendor, due date, payment status (max 100 words)
-5. **Smart Financial Actions**: 
+1. **Category**: Choose from ${EmailCategory.NEWSLETTER}, ${EmailCategory.NOTIFICATION}, or ${EmailCategory.WORK}
+2. **Priority**: Based on market impact, urgency, and portfolio relevance
+3. **Sentiment**: Reflect market tone - ${Object.values(Sentiment).join(', ')}
+4. **Summary**: Include key financial data, market movements, investment implications (max 100 words)
+5. **Smart Financial Actions**:
 
-**Payment Action Logic:**
-- PAID invoices → "archive" (LOW priority)
-- UPCOMING payment (7+ days) → "follow_up" (MEDIUM priority)  
-- DUE SOON (1-7 days) → "payment_due" (HIGH priority)
-- OVERDUE → "payment_due" (URGENT priority)
-- PAYMENT FAILED → "review_document" (URGENT priority)
+**Financial Action Logic:**
+- URGENT market alerts/crashes → "call" or "review_document" (URGENT priority)
+- IMPORTANT earnings/news → "review_document" (HIGH priority)
+- REGULAR market updates → "archive" or "follow_up" (MEDIUM priority)
+- PROMOTIONAL investment offers → "archive" (LOW priority)
+- ACCOUNT statements/notifications → "save_invoice" (MEDIUM priority)
 
 Email Subject: {{subject}}
 From: {{fromAddress}}
@@ -57,36 +57,34 @@ Content: {{bodyText}}
 
 Respond in JSON format only:
 {
-  "category": "INVOICE",
+  "category": "NEWSLETTER",
   "priority": "HIGH",
-  "sentiment": "NEUTRAL",
-  "summary": "Monthly subscription invoice from Apple Music for $9.99, due January 25th, payment pending",
+  "sentiment": "NEGATIVE",
+  "summary": "Market alert: Tech stocks down 5% after earnings miss, AAPL and GOOGL leading decline",
   "actionItems": [
     {
-      "actionType": "PAYMENT_DUE",
-      "description": "Payment due in 3 days - review and process",
-      "priority": "HIGH",
-      "dueDate": "2024-01-25"
+      "actionType": "REVIEW_DOCUMENT",
+      "description": "Review market impact on tech portfolio holdings",
+      "priority": "HIGH"
     }
   ],
-  "tags": ["finance", "subscription", "due-soon"],
+  "tags": ["market-alert", "tech-stocks", "earnings"],
   "confidence": 0.9
 }`,
 
   exampleResponse: {
-    category: EmailCategory.INVOICE,
+    category: EmailCategory.NEWSLETTER,
     priority: Priority.HIGH,
-    sentiment: Sentiment.NEUTRAL,
-    summary: 'Monthly subscription invoice from Apple Music for $9.99, due January 25th, payment pending',
+    sentiment: Sentiment.NEGATIVE,
+    summary: 'Market alert: Tech stocks down 5% after earnings miss, AAPL and GOOGL leading decline',
     actionItems: [
       {
-        actionType: ActionType.PAYMENT_DUE,
-        description: 'Payment due in 3 days - review and process',
+        actionType: ActionType.REVIEW_DOCUMENT,
+        description: 'Review market impact on tech portfolio holdings',
         priority: Priority.HIGH,
-        dueDate: '2024-01-25',
       },
     ],
-    tags: ['finance', 'subscription', 'due-soon'],
+    tags: ['market-alert', 'tech-stocks', 'earnings'],
     confidence: 0.9,
   },
 

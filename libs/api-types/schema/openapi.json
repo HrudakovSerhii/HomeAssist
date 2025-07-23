@@ -502,13 +502,7 @@
       "ProcessedEmailsResponse": {
         "type": "object",
         "properties": {
-          "success": {
-            "type": "boolean"
-          },
-          "message": {
-            "type": "string"
-          },
-          "processedEmails": {
+          "data": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/ProcessedEmails"
@@ -516,9 +510,61 @@
           },
           "pagination": {
             "$ref": "#/components/schemas/Pagination"
+          },
+          "filters": {
+            "$ref": "#/components/schemas/ProcessedEmailsFilters"
           }
         },
-        "required": ["success", "processedEmails", "pagination"]
+        "required": ["data", "pagination", "filters"]
+      },
+      "ProcessedEmailsFilters": {
+        "type": "object",
+        "properties": {
+          "search": {
+            "type": "string",
+            "nullable": true
+          },
+          "category": {
+            "type": "string",
+            "nullable": true
+          },
+          "priority": {
+            "type": "string",
+            "nullable": true
+          },
+          "sentiment": {
+            "type": "string",
+            "nullable": true
+          },
+          "entityType": {
+            "type": "string",
+            "nullable": true
+          },
+          "actionType": {
+            "type": "string",
+            "nullable": true
+          },
+          "dateFrom": {
+            "type": "string",
+            "nullable": true
+          },
+          "dateTo": {
+            "type": "string",
+            "nullable": true
+          },
+          "minConfidence": {
+            "type": "number",
+            "nullable": true
+          },
+          "sortBy": {
+            "type": "string"
+          },
+          "sortOrder": {
+            "type": "string",
+            "enum": ["asc", "desc"]
+          }
+        },
+        "required": ["sortBy", "sortOrder"]
       },
       "FilterOptions": {
         "type": "object",

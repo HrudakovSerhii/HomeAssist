@@ -957,10 +957,23 @@ export interface components {
             totalPages: number;
         };
         ProcessedEmailsResponse: {
-            success: boolean;
-            message?: string;
-            processedEmails: components["schemas"]["ProcessedEmails"][];
+            data: components["schemas"]["ProcessedEmails"][];
             pagination: components["schemas"]["Pagination"];
+            filters: components["schemas"]["ProcessedEmailsFilters"];
+        };
+        ProcessedEmailsFilters: {
+            search?: string | null;
+            category?: string | null;
+            priority?: string | null;
+            sentiment?: string | null;
+            entityType?: string | null;
+            actionType?: string | null;
+            dateFrom?: string | null;
+            dateTo?: string | null;
+            minConfidence?: number | null;
+            sortBy: string;
+            /** @enum {string} */
+            sortOrder: "asc" | "desc";
         };
         FilterOptions: {
             categories: components["schemas"]["EmailCategory"][];

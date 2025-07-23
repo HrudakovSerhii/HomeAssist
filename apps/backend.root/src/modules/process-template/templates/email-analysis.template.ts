@@ -1,9 +1,9 @@
-import { 
-  EmailCategory, 
-  EntityType, 
-  ActionType, 
-  Priority, 
-  Sentiment 
+import {
+  EmailCategory,
+  EntityType,
+  ActionType,
+  Priority,
+  Sentiment,
 } from '@prisma/client';
 
 // Type-safe template interface
@@ -23,12 +23,6 @@ export interface EmailAnalysisTemplate {
     priority: Priority;
     sentiment: Sentiment;
     summary: string;
-    entities: Array<{
-      type: EntityType;
-      value: string | string[];
-      confidence: number;
-      context?: string;
-    }>;
     actionItems: Array<{
       actionType: ActionType;
       description: string;
@@ -44,7 +38,7 @@ export interface EmailAnalysisTemplate {
 export const GENERAL_EMAIL_ANALYSIS_TEMPLATE: EmailAnalysisTemplate = {
   name: 'general-email-analysis',
   description:
-    'General purpose email analysis for categorization, priority, sentiment, and entity extraction',
+    'Streamlined email analysis focusing on category, priority, sentiment, and contextual actions',
   categories: [
     EmailCategory.PERSONAL,
     EmailCategory.WORK,
@@ -56,82 +50,59 @@ export const GENERAL_EMAIL_ANALYSIS_TEMPLATE: EmailAnalysisTemplate = {
     EmailCategory.RECEIPT,
     EmailCategory.APPOINTMENT,
   ],
-  template: `Analyze the following email and extract:
-1. Category (${Object.values(EmailCategory).join(', ')})
-2. Priority level (${Object.values(Priority).join(', ')})
-3. Sentiment (${Object.values(Sentiment).join(', ')})
-4. Key entities (${Object.values(EntityType).join(', ')})
-5. Action items or tasks mentioned (${Object.values(ActionType).join(', ')})
-6. Brief summary
+  template: `Analyze this email and determine:
+
+1. **Category**: Choose exactly one from: ${Object.values(EmailCategory).join(', ')}
+2. **Priority**: Choose exactly one from: ${Object.values(Priority).join(', ')}
+3. **Sentiment**: Choose exactly one from: ${Object.values(Sentiment).join(', ')}
+4. **Summary**: Brief context (max 100 words)
+5. **Smart Actions**: Based on category + priority, determine contextual actions
+
+**Smart Action Logic:**
+- APPOINTMENT/MEETING + HIGH priority + future date → "add_reminder_to_calendar"
+- INVOICE + LOW priority (paid) → "no_action_needed"  
+- INVOICE + MEDIUM priority (future payment) → "add_reminder_to_calendar"
+- INVOICE + HIGH priority (payment failed/overdue) → "review_required"
+- SUPPORT + HIGH priority → "reply_required"
+- WORK + HIGH priority → "reply_required" or "review_required"
+- MARKETING/NEWSLETTER → "no_action_needed" (unless HIGH priority)
 
 Email Subject: {{subject}}
 From: {{fromAddress}}
-Email Content: {{bodyText}}
-
-ENTITY VALUE RULES:
-- DATE_RANGE: Provide as array of 2 dates: ["start_date", "end_date"]
-- URL: Provide as array if multiple URLs: ["url1", "url2"] or single string if one URL
-- TECHNOLOGY: Provide as array if multiple technologies: ["React", "Node.js"] or single string if one
-- PRODUCT: Provide as array if multiple products: ["Product A", "Product B"] or single string if one
-- PHONE_NUMBER: Provide as array if multiple numbers: ["+1234567890", "+0987654321"] or single string if one
-- EMAIL_ADDRESS: Provide as array if multiple emails: ["email1@example.com", "email2@example.com"] or single string if one
-- All other entity types: Provide as single string value
+Content: {{bodyText}}
 
 Respond in JSON format only:
 {
   "category": "WORK",
-  "priority": "MEDIUM", 
+  "priority": "HIGH",
   "sentiment": "NEUTRAL",
-  "summary": "Brief summary of email content and purpose",
-  "entities": [
-    {"type": "PERSON", "value": "John Doe", "confidence": 0.9},
-    {"type": "ORGANIZATION", "value": "Company Name", "confidence": 0.8},
-    {"type": "DATE", "value": "2024-01-15", "confidence": 0.9},
-    {"type": "DATE_RANGE", "value": ["2024-01-15", "2024-01-30"], "confidence": 0.9},
-    {"type": "URL", "value": ["https://example.com", "https://docs.example.com"], "confidence": 0.85},
-    {"type": "TECHNOLOGY", "value": ["React", "Node.js", "TypeScript"], "confidence": 0.9},
-    {"type": "AMOUNT", "value": "$99.99", "confidence": 0.95}
-  ],
+  "summary": "Meeting request for project review scheduled for next week",
   "actionItems": [
     {
       "actionType": "REPLY_REQUIRED",
       "description": "Respond to meeting invitation",
       "priority": "HIGH"
-    },
-    {
-      "actionType": "VIEW_LINK",
-      "description": "Review the attached documentation",
-      "priority": "MEDIUM"
     }
   ],
-  "tags": ["meeting", "urgent", "response-needed"],
-  "confidence": 0.85
+  "tags": ["meeting", "project-review"],
+  "confidence": 0.9
 }`,
-  
+
   // Type-safe example response
   exampleResponse: {
     category: EmailCategory.WORK,
-    priority: Priority.MEDIUM,
+    priority: Priority.HIGH,
     sentiment: Sentiment.NEUTRAL,
-    summary: "Brief summary of email content and purpose",
-    entities: [
-      { type: EntityType.PERSON, value: "John Doe", confidence: 0.9 },
-      { type: EntityType.ORGANIZATION, value: "Company Name", confidence: 0.8 },
-      { type: EntityType.DATE, value: "2024-01-15", confidence: 0.9 },
-      { type: EntityType.DATE_RANGE, value: ["2024-01-15", "2024-01-30"], confidence: 0.9 },
-      { type: EntityType.URL, value: ["https://example.com", "https://docs.example.com"], confidence: 0.85 },
-      { type: EntityType.TECHNOLOGY, value: ["React", "Node.js", "TypeScript"], confidence: 0.9 },
-      { type: EntityType.AMOUNT, value: "$99.99", confidence: 0.95 }
-    ],
+    summary: 'Meeting request for project review scheduled for next week',
     actionItems: [
       {
         actionType: ActionType.REPLY_REQUIRED,
-        description: "Respond to meeting invitation",
-        priority: Priority.HIGH
-      }
+        description: 'Respond to meeting invitation',
+        priority: Priority.HIGH,
+      },
     ],
-    tags: ["meeting", "urgent", "response-needed"],
-    confidence: 0.85
+    tags: ['meeting', 'project-review'],
+    confidence: 0.9,
   },
 
   expectedOutputSchema: {
@@ -150,35 +121,20 @@ Respond in JSON format only:
         type: 'string',
         enum: Object.values(Sentiment),
       },
-      summary: { type: 'string', maxLength: 500 },
-      entities: {
-        type: 'array',
-        items: {
-          type: 'object',
-          properties: {
-            type: { 
-              type: 'string',
-              enum: Object.values(EntityType)
-            },
-            value: { type: 'string' },
-            confidence: { type: 'number', minimum: 0, maximum: 1 },
-            context: { type: 'string' },
-          },
-        },
-      },
+      summary: { type: 'string', maxLength: 200 },
       actionItems: {
         type: 'array',
         items: {
           type: 'object',
           properties: {
-            actionType: { 
+            actionType: {
               type: 'string',
-              enum: Object.values(ActionType)
+              enum: Object.values(ActionType),
             },
             description: { type: 'string' },
-            priority: { 
+            priority: {
               type: 'string',
-              enum: Object.values(Priority)
+              enum: Object.values(Priority),
             },
             dueDate: { type: 'string' },
           },

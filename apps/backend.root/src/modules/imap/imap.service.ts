@@ -95,9 +95,9 @@ export class ImapService {
     const client = new ImapFlow({
       ...config,
       // Optimized timeouts for better reliability
-      connectionTimeout: 30000, // 30 seconds to establish connection
-      greetingTimeout: 10000, // 10 seconds for server greeting
-      socketTimeout: 120000, // 2 minutes of inactivity before timeout
+      connectionTimeout: 20000, // 20 seconds to establish connection (reduced)
+      greetingTimeout: 8000, // 8 seconds for server greeting (reduced)
+      socketTimeout: 60000, // 1 minute of inactivity before timeout (reduced)
     });
 
     // Connect and authenticate
@@ -115,12 +115,23 @@ export class ImapService {
     if (this.connections.has(accountId)) {
       const connection = this.connections.get(accountId)!;
 
-      // Check if connection is still valid
-      if (connection.usable) {
-        return connection;
-      } else {
-        // Remove stale connection
-        this.connections.delete(accountId);
+      // Better connection validation
+      try {
+        if (connection.usable && connection.authenticated) {
+          // Test the connection with a quick operation
+          await connection.status('INBOX', { messages: true });
+          return connection;
+        }
+      } catch (error) {
+        this.logger.warn(`Cached connection for ${accountId} is stale:`, error);
+      }
+      
+      // Remove stale connection
+      this.connections.delete(accountId);
+      try {
+        await connection.logout();
+      } catch (error) {
+        // Ignore logout errors for stale connections
       }
     }
 
@@ -201,8 +212,8 @@ export class ImapService {
 
       const client = new ImapFlow({
         ...config,
-        connectionTimeout: 30000,
-        greetingTimeout: 10000,
+        connectionTimeout: 10000,
+        greetingTimeout: 3000,
         socketTimeout: 120000,
       });
       await client.connect();
@@ -249,14 +260,19 @@ export class ImapService {
       folder?: string;
     } = {}
   ): Promise<EmailMessage[]> {
+    const startTime = Date.now();
     this.logger.log(`Starting fetchAndProcessEmails for account ${accountId}`);
     this.logger.log(`Options: ${JSON.stringify(options)}`);
 
     try {
+      this.logger.log(`Getting IMAP connection for account ${accountId}...`);
       const client = await this.getConnection(accountId);
+      this.logger.log(`IMAP connection established (${Date.now() - startTime}ms)`);
+      
       const folder = options.folder || 'INBOX';
-
+      this.logger.log(`Acquiring mailbox lock for folder: ${folder}...`);
       const mailbox = await client.getMailboxLock(folder);
+      this.logger.log(`Mailbox lock acquired (${Date.now() - startTime}ms)`);
 
       try {
         const processedEmails: EmailMessage[] = [];
@@ -351,7 +367,7 @@ export class ImapService {
         }
 
         this.logger.log(
-          `Successfully processed ${processedEmails.length}/${limit} emails`
+          `Successfully processed ${processedEmails.length}/${limit} emails in ${Date.now() - startTime}ms`
         );
 
         return processedEmails;
