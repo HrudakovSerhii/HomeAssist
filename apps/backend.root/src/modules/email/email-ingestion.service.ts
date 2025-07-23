@@ -1,5 +1,4 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { EmailGateway, EmailIngestionProgress } from './email.gateway';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { ImapService } from '../imap/imap.service';
 import { EmailProcessorService } from './email-processor.service';
@@ -13,16 +12,7 @@ export class EmailIngestionService {
     private readonly prisma: PrismaService,
     private readonly imapService: ImapService,
     private readonly emailProcessor: EmailProcessorService
-  ) // private readonly emailGateway: EmailGateway
-  {}
-
-  // private sendProgressUpdate(userId: string, progress: EmailIngestionProgress) {
-  //   try {
-  //     this.emailGateway.sendProgressUpdate(userId, progress);
-  //   } catch (error) {
-  //     this.logger.error('Failed to send progress update', error);
-  //   }
-  // }
+  ) {}
 
   async ingestUserEmails(
     userId: string,
@@ -50,18 +40,6 @@ export class EmailIngestionService {
 
       for (const account of emailAccounts) {
         try {
-          // Initial progress
-          // this.sendProgressUpdate(userId, {
-          //   stage: 'CONNECTING',
-          //   emailAccountId: account.id,
-          //   completedSteps: {
-          //     fetched: false,
-          //     stored: false,
-          //     processed: false,
-          //   },
-          //   progress: 0,
-          // });
-
           // Test connection with timeout
           const connectionTest = await this.imapService.testConnection(
             account.id
@@ -70,18 +48,6 @@ export class EmailIngestionService {
           if (!connectionTest.success) {
             throw new Error(`Failed to connect: ${connectionTest.message}`);
           }
-
-          // Fetch emails with timeout
-          // this.sendProgressUpdate(userId, {
-          //   stage: 'FETCHING',
-          //   emailAccountId: account.id,
-          //   completedSteps: {
-          //     fetched: false,
-          //     stored: false,
-          //     processed: false,
-          //   },
-          //   progress: 20,
-          // });
 
           const emailMessages = (await Promise.race([
             this.imapService.fetchAndProcessEmails(account.id, {
@@ -96,53 +62,6 @@ export class EmailIngestionService {
                 ) // 2 minutes
             ),
           ])) as any[];
-
-          // Store emails
-          // this.sendProgressUpdate(userId, {
-          //   stage: 'STORING',
-          //   emailAccountId: account.id,
-          //   completedSteps: {
-          //     fetched: true,
-          //     stored: false,
-          //     processed: false,
-          //   },
-          //   progress: 50,
-          //   totalEmails: emails.length,
-          // });
-
-          // const storedEmails = await Promise.all(
-          //   emails.map(async (email) => {
-          //     const stored = await this.prisma.email.create({
-          //       data: {
-          //         messageId: email.messageId,
-          //         emailAccountId: account.id,
-          //         subject: email.subject,
-          //         fromAddress: email.from,
-          //         toAddresses: email.to,
-          //         ccAddresses: email.cc,
-          //         bccAddresses: email.bcc,
-          //         receivedAt: email.date,
-          //         bodyText: email.bodyText,
-          //         bodyHtml: email.bodyHtml,
-          //       },
-          //     });
-          //     return stored;
-          //   })
-          // );
-
-          // Process emails
-          // this.sendProgressUpdate(userId, {
-          //   stage: 'PROCESSING',
-          //   emailAccountId: account.id,
-          //   completedSteps: {
-          //     fetched: true,
-          //     stored: true,
-          //     processed: false,
-          //   },
-          //   progress: 75,
-          //   totalEmails: emails.length,
-          //   processedEmails: 0,
-          // });
 
           const processedEmails = [];
 
@@ -186,38 +105,7 @@ export class EmailIngestionService {
                 processedEmail: null,
               });
             }
-
-            // this.sendProgressUpdate(userId, {
-            //   stage: 'PROCESSING',
-            //   emailAccountId: account.id,
-            //   completedSteps: {
-            //     fetched: true,
-            //     stored: true,
-            //     processed: false,
-            //   },
-            //   progress: 75 + (25 * (index + 1)) / storedEmails.length,
-            //   totalEmails: emails.length,
-            //   processedEmails: index + 1,
-            //   currentEmail: {
-            //     subject: email.subject,
-            //     from: email.fromAddress,
-            //   },
-            // });
           }
-
-          // Complete
-          // this.sendProgressUpdate(userId, {
-          //   stage: 'COMPLETED',
-          //   emailAccountId: account.id,
-          //   completedSteps: {
-          //     fetched: true,
-          //     stored: true,
-          //     processed: true,
-          //   },
-          //   progress: 100,
-          //   totalEmails: emails.length,
-          //   processedEmails: emails.length,
-          // });
 
           // Calculate success/failure counts
           const successful = processedEmails.filter((e) => e.success);
@@ -243,18 +131,6 @@ export class EmailIngestionService {
             `Failed to process account ${account.email}:`,
             error
           );
-
-          // this.sendProgressUpdate(userId, {
-          //   stage: 'FAILED',
-          //   emailAccountId: account.id,
-          //   error: error.message,
-          //   completedSteps: {
-          //     fetched: false,
-          //     stored: false,
-          //     processed: false,
-          //   },
-          //   progress: 0,
-          // });
 
           results.push({
             accountId: account.id,

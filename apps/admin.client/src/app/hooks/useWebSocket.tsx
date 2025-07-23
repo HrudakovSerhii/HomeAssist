@@ -3,25 +3,21 @@ import { io, Socket } from 'socket.io-client';
 
 import { API_ENDPOINTS } from '../../configuration';
 
-export interface WebSocketMessage<T = any> {
-  type: string;
-  data: T;
-}
-
 interface UseWebSocketOptions {
   onMessage?: (data: any) => void;
   onError?: (error: Error) => void;
   onClose?: () => void;
-  autoReconnect?: boolean;
-  autoConnect?: boolean;
-  reconnectAttempts?: number;
-  reconnectInterval?: number;
+  onConnected?: () => void;
+  connectOnMount?: boolean;
+  messageEvents?: string[];
+  namespace?: string;
+  sendEvent?: string;
 }
 
 interface UseWebSocketReturn {
   isConnected: boolean;
   error: string | null;
-  sendMessage: (data: any) => void;
+  sendMessage: (data: any, eventName?: string) => void;
   disconnect: () => void;
   connect: () => void;
 }
@@ -32,103 +28,139 @@ export function useWebSocket(
     onMessage,
     onError,
     onClose,
-    autoReconnect = true,
-    autoConnect = true,
-    reconnectAttempts = 3,
-    reconnectInterval = 5000,
+    onConnected,
+    connectOnMount = false,
+    messageEvents = ['progress'],
+    sendEvent = 'register',
+    namespace = 'email-ingestion-v2',
   }: UseWebSocketOptions = {}
 ): UseWebSocketReturn {
-  const socket = useRef<Socket | null>(null);
+  const socketRef = useRef<Socket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const cleanup = useCallback(() => {
-    if (socket.current) {
-      socket.current.disconnect();
-      socket.current = null;
-    }
-  }, []);
-
-  const connect = useCallback(() => {
-    cleanup();
-
-    try {
-      // Remove leading slash from path if present for namespace
-      const namespace = path.startsWith('/') ? path.slice(1) : path;
-      
-      // Create Socket.IO connection
-      const socketInstance = io(`${API_ENDPOINTS.ws.baseUrl}/${namespace}`, {
-        autoConnect: autoConnect,
-        reconnection: autoReconnect,
-        reconnectionAttempts: reconnectAttempts,
-        reconnectionDelay: reconnectInterval,
-        transports: ['websocket', 'polling'],
-      });
-
-      socketInstance.on('connect', () => {
-        setIsConnected(true);
-        setError(null);
-      });
-
-      socketInstance.on('disconnect', () => {
-        setIsConnected(false);
-        onClose?.();
-      });
-
-      socketInstance.on('connect_error', (err) => {
-        setError('Socket.IO connection error');
-        onError?.(err);
-      });
-
-      // Listen for progress messages (specific to email ingestion)
-      socketInstance.on('progress', (data) => {
-        onMessage?.(data);
-      });
-
-      // Listen for any other messages
-      socketInstance.on('message', (data) => {
-        onMessage?.(data);
-      });
-
-      socket.current = socketInstance;
-    } catch (err) {
-      setError('Failed to establish Socket.IO connection');
-      console.error('Socket.IO connection error:', err);
-    }
-  }, [
-    path,
+  // Use refs to store latest callback values without causing re-renders
+  const callbacksRef = useRef({
     onMessage,
     onError,
     onClose,
-    autoReconnect,
-    autoConnect,
-    reconnectAttempts,
-    reconnectInterval,
-    cleanup,
-  ]);
+    onConnected,
+  });
 
+  // Update refs when callbacks change (but don't trigger useEffect)
   useEffect(() => {
-    if (autoConnect) {
-      connect();
-    }
-    return cleanup;
-  }, [autoConnect, connect, cleanup]);
+    callbacksRef.current = {
+      onMessage,
+      onError,
+      onClose,
+      onConnected,
+    };
+  }, [onMessage, onError, onClose, onConnected]);
 
-  const sendMessage = useCallback(
-    (data: any) => {
-      if (socket.current && isConnected) {
-        // Send register message for email ingestion
-        socket.current.emit('register', data);
-      } else {
-        console.warn('Socket.IO is not connected');
-      }
-    },
-    [isConnected]
-  );
+  const connect = useCallback(() => {
+    console.log(`🔄 useWebSocket: Starting connection to ${path}`);
+
+    // Cleanup existing connection
+    if (socketRef.current) {
+      console.log(`🔄 useWebSocket: Cleaning up existing connection`);
+      socketRef.current.disconnect();
+      socketRef.current = null;
+    }
+
+    const wsUrl = `${API_ENDPOINTS.ws.baseUrl}/${namespace}`;
+    console.log(`🚀 useWebSocket: Attempting connection to: ${wsUrl}`);
+
+    // Create socket with EXACT same config as WebSocketTest
+    const socket = io(wsUrl, {
+      transports: ['websocket', 'polling'],
+    });
+
+    // Event handlers - using refs to avoid dependency issues
+    socket.on('connect', () => {
+      console.log(`✅ useWebSocket: Connected to ${path}:`, socket.id);
+      setIsConnected(true);
+      setError(null);
+      callbacksRef.current.onConnected?.();
+    });
+
+    socket.on('disconnect', (reason) => {
+      console.log(`❌ useWebSocket: Disconnected from ${path}:`, reason);
+      setIsConnected(false);
+      callbacksRef.current.onClose?.();
+    });
+
+    socket.on('connect_error', (err) => {
+      console.error(`🚨 useWebSocket: Connection error for ${path}:`, err);
+      setError('Socket.IO connection error');
+      callbacksRef.current.onError?.(err);
+    });
+
+    // Listen for message events
+    messageEvents.forEach((eventName) => {
+      socket.on(eventName, (data) => {
+        callbacksRef.current.onMessage?.(data);
+      });
+    });
+
+    // Listen for registration confirmation
+    socket.on('registered', (data) => {
+      console.log('✅ useWebSocket: Registration confirmed:', data);
+    });
+
+    socketRef.current = socket;
+  }, [path, namespace, messageEvents]); // Only static dependencies
 
   const disconnect = useCallback(() => {
-    cleanup();
-  }, [cleanup]);
+    console.log(`🛑 useWebSocket: Manual disconnect requested`);
+    if (socketRef.current) {
+      socketRef.current.disconnect();
+      socketRef.current = null;
+    }
+    setIsConnected(false);
+  }, []);
+
+  const sendMessage = useCallback(
+    (data: any, eventName?: string) => {
+      if (socketRef.current && isConnected) {
+        const event = eventName || sendEvent;
+        console.log(`📤 useWebSocket: Sending message: ${event}`, data);
+        socketRef.current.emit(event, data);
+      } else {
+        console.warn('⚠️ useWebSocket: Cannot send message - not connected');
+      }
+    },
+    [isConnected, sendEvent]
+  );
+
+  // Handle mount/unmount - NO connect function in dependencies
+  useEffect(() => {
+    console.log(
+      `🏗️ useWebSocket: Hook mounted for ${path}, connectOnMount: ${connectOnMount}`
+    );
+
+    if (connectOnMount) {
+      console.log(`🚀 useWebSocket: Auto-connecting on mount`);
+      connect();
+    }
+
+    // Cleanup ONLY on actual unmount (empty dependency array)
+    return () => {
+      console.log(`🧹 useWebSocket: Hook unmounting for ${path}`);
+      if (socketRef.current?.connected) {
+        console.log(`🧹 useWebSocket: Disconnecting on unmount`);
+        socketRef.current.disconnect();
+        socketRef.current = null;
+      }
+    };
+  }, []); // EMPTY dependency array - only run on mount/unmount
+
+  // Separate effect for connectOnMount changes (without cleanup)
+  useEffect(() => {
+    if (connectOnMount && !socketRef.current) {
+      console.log(`🚀 useWebSocket: ConnectOnMount changed, connecting...`);
+      connect();
+    }
+  }, [connectOnMount, connect]);
 
   return {
     isConnected,
@@ -137,4 +169,4 @@ export function useWebSocket(
     disconnect,
     connect,
   };
-} 
+}

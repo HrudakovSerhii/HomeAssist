@@ -1,11 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth, useApi, useEmailIngestion } from '../../hooks';
 
-import {
-  PageContainer,
-  AlertMessage,
-  EmailIngestionProgressView,
-} from '../../components';
+import { PageContainer, AlertMessage } from '../../components';
 
 import { dataService, authService } from '../../services';
 import { DashboardFilterOptions } from '../../../../constants';
@@ -23,7 +19,6 @@ import {
 
 import type { EmailData, FilterState } from '../../types';
 import type {
-  ProcessedEmails,
   ProcessedEmailsResponse,
   UserAccountsResponse,
 } from '@home-assist/api-types';
@@ -70,10 +65,10 @@ const DashboardPage: React.FC = () => {
   const {
     isIngesting,
     error: ingestionError,
-    progress: ingestionProgress,
+    // progress: ingestionProgress,
     startIngestion,
     clearError: clearIngestionError,
-    clearProgress: clearIngestionProgress,
+    // clearProgress: clearIngestionProgress,
   } = useEmailIngestion({
     limit: 5,
     folder: 'INBOX',
@@ -200,11 +195,6 @@ const DashboardPage: React.FC = () => {
     }
   };
 
-  const handleCloseProgress = useCallback(() => {
-    clearIngestionProgress();
-    clearIngestionError();
-  }, [clearIngestionProgress, clearIngestionError]);
-
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
   };
@@ -235,7 +225,7 @@ const DashboardPage: React.FC = () => {
       </PageContainer>
     );
   }
-  console.log(emailData);
+
   return (
     <PageContainer>
       <div className="space-y-6">
@@ -304,12 +294,6 @@ const DashboardPage: React.FC = () => {
               onPageChange={handlePageChange}
             />
           )}
-
-        {/*<EmailIngestionProgressView*/}
-        {/*  isOpen={!!ingestionProgress}*/}
-        {/*  onClose={handleCloseProgress}*/}
-        {/*  progress={ingestionProgress}*/}
-        {/*/>*/}
       </div>
     </PageContainer>
   );
