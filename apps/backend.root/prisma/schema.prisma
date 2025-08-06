@@ -26,8 +26,8 @@ model User {
   isActive       Boolean  @default(true)
 
   // Relations
-  sessions Session[]
-  accounts EmailAccount[]
+  sessions            Session[]
+  accounts            EmailAccount[]
   processingSchedules ProcessingSchedule[]
 
   @@map("users")
@@ -52,7 +52,7 @@ model Session {
 model ProcessedEmails {
   id               String           @id @default(uuid())
   messageId        String           @unique // Gmail message ID for reference
-  emailAccountId   String           // Link to email account
+  emailAccountId   String // Link to email account
   subject          String
   fromAddress      String
   toAddresses      String[]
@@ -71,11 +71,11 @@ model ProcessedEmails {
   createdAt        DateTime         @default(now())
   updatedAt        DateTime         @updatedAt
 
-  emailAccount EmailAccount       @relation(fields: [emailAccountId], references: [id], onDelete: Cascade)
-  entities     EntityExtraction[]
-  actionItems  ActionItem[]
+  emailAccount        EmailAccount       @relation(fields: [emailAccountId], references: [id], onDelete: Cascade)
+  entities            EntityExtraction[]
+  actionItems         ActionItem[]
   scheduleExecutionId String?
-  scheduleExecution  ScheduleExecution? @relation(fields: [scheduleExecutionId], references: [id])
+  scheduleExecution   ScheduleExecution? @relation(fields: [scheduleExecutionId], references: [id])
 
   @@index([messageId])
   @@index([emailAccountId])
@@ -86,15 +86,15 @@ model ProcessedEmails {
 }
 
 model EntityExtraction {
-  id                String     @id @default(uuid())
-  processedEmailId  String
-  entityType        EntityType
-  entityValue       String
-  confidence        Float
-  startPosition     Int?
-  endPosition       Int?
-  context           String?
-  createdAt         DateTime   @default(now())
+  id               String     @id @default(uuid())
+  processedEmailId String
+  entityType       EntityType
+  entityValue      String
+  confidence       Float
+  startPosition    Int?
+  endPosition      Int?
+  context          String?
+  createdAt        DateTime   @default(now())
 
   processedEmail ProcessedEmails @relation(fields: [processedEmailId], references: [id], onDelete: Cascade)
 
@@ -244,43 +244,43 @@ enum ExecutionStatus {
 }
 
 model ProcessingSchedule {
-  id                  String         @id @default(uuid())
-  userId              String
-  emailAccountId      String
-  name                String
-  description         String?
-  isEnabled           Boolean        @default(true)
-  isDefault           Boolean        @default(false)
+  id             String  @id @default(uuid())
+  userId         String
+  emailAccountId String
+  name           String
+  description    String?
+  isEnabled      Boolean @default(true)
+  isDefault      Boolean @default(false)
 
   // Processing Configuration
-  processingType      ProcessingType
-  dateRangeFrom      DateTime?
-  dateRangeTo        DateTime?
-  cronExpression     String?
-  timezone           String         @default("UTC")
-  specificDates      Json?
+  processingType ProcessingType
+  dateRangeFrom  DateTime?
+  dateRangeTo    DateTime?
+  cronExpression String?
+  timezone       String         @default("UTC")
+  specificDates  Json?
 
   // Processing Preferences
-  batchSize          Int            @default(5)
-  emailTypePriorities Json          @default("{}")
-  senderPriorities   Json          @default("{}")
-  llmFocus           LlmFocus      @default(general)
+  batchSize           Int      @default(5)
+  emailTypePriorities Json     @default("{}")
+  senderPriorities    Json     @default("{}")
+  llmFocus            LlmFocus @default(general)
 
   // Execution Tracking
-  lastExecutedAt     DateTime?
-  nextExecutionAt    DateTime?
-  totalExecutions    Int           @default(0)
-  successfulExecutions Int         @default(0)
-  failedExecutions   Int           @default(0)
+  lastExecutedAt       DateTime?
+  nextExecutionAt      DateTime?
+  totalExecutions      Int       @default(0)
+  successfulExecutions Int       @default(0)
+  failedExecutions     Int       @default(0)
 
   // Metadata
-  createdAt          DateTime      @default(now())
-  updatedAt          DateTime      @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // Relations
-  user               User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  emailAccount       EmailAccount  @relation(fields: [emailAccountId], references: [id], onDelete: Cascade)
-  executions ScheduleExecution[]
+  user         User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  emailAccount EmailAccount        @relation(fields: [emailAccountId], references: [id], onDelete: Cascade)
+  executions   ScheduleExecution[]
 
   @@unique([userId, name])
   @@index([nextExecutionAt, isEnabled])
@@ -290,35 +290,35 @@ model ProcessingSchedule {
 }
 
 model ScheduleExecution {
-  id                           String          @id @default(uuid())
-  scheduleId                   String
-  status                      ExecutionStatus @default(RUNNING)
-  startedAt                   DateTime        @default(now())
-  completedAt                 DateTime?
+  id          String          @id @default(uuid())
+  scheduleId  String
+  status      ExecutionStatus @default(RUNNING)
+  startedAt   DateTime        @default(now())
+  completedAt DateTime?
 
   // Progress Tracking
-  totalBatchesCount               Int             @default(0)
-  completedBatchesCount           Int             @default(0)
-  totalEmailsCount                Int             @default(0)
-  processedEmailsCount            Int             @default(0)
-  failedEmailsCount               Int             @default(0)
-  lastProcessedUid                String?
+  totalBatchesCount     Int     @default(0)
+  completedBatchesCount Int     @default(0)
+  totalEmailsCount      Int     @default(0)
+  processedEmailsCount  Int     @default(0)
+  failedEmailsCount     Int     @default(0)
+  lastProcessedUid      String?
 
   // Error Handling
-  attemptCount               Int             @default(1)
-  maxAttempts               Int             @default(3)
-  errorMessage              String?
-  errorDetails              Json?
+  attemptCount Int     @default(1)
+  maxAttempts  Int     @default(3)
+  errorMessage String?
+  errorDetails Json?
 
   // Performance Metrics
-  processingDurationMs       Int?
+  processingDurationMs         Int?
   averageEmailProcessingTimeMs Int?
 
-  createdAt                 DateTime         @default(now())
+  createdAt DateTime @default(now())
 
   // Relations
-  schedule                  ProcessingSchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
-  processedEmails          ProcessedEmails[]
+  schedule        ProcessingSchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  processedEmails ProcessedEmails[]
 
   @@index([scheduleId, status])
   @@index([startedAt])
@@ -349,8 +349,8 @@ model EmailAccount {
   updatedAt             DateTime      @updatedAt
 
   // Relations
-  user            User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  processedEmails ProcessedEmails[]
+  user                User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  processedEmails     ProcessedEmails[]
   processingSchedules ProcessingSchedule[]
 
   @@index([userId])
@@ -364,4 +364,15 @@ enum EmailProvider {
   OUTLOOK
   YAHOO
   IMAP_GENERIC
+}
+
+model CronJobRegistry {
+  id            String    @id @default(uuid())
+  executionTime DateTime  @unique
+  scheduleIds   String[]  // Array of schedule IDs executing at this time
+  isLocked      Boolean   @default(false)
+  createdAt     DateTime  @default(now())
+
+  @@index([executionTime])
+  @@map("cron_job_registry")
 }
