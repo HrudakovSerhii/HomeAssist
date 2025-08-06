@@ -28,6 +28,7 @@ model User {
   // Relations
   sessions Session[]
   accounts EmailAccount[]
+  processingSchedules ProcessingSchedule[]
 
   @@map("users")
 }
@@ -221,6 +222,63 @@ enum ActionType {
   VIEW_LINK
 }
 
+enum ProcessingType {
+  DATE_RANGE
+  RECURRING
+  SPECIFIC_DATES
+}
+
+enum LlmFocus {
+  general
+  sentiment
+  urgency
+}
+
+model ProcessingSchedule {
+  id                  String         @id @default(uuid())
+  userId              String
+  emailAccountId      String
+  name                String
+  description         String?
+  isEnabled           Boolean        @default(true)
+  isDefault           Boolean        @default(false)
+  
+  // Processing Configuration
+  processingType      ProcessingType
+  dateRangeFrom      DateTime?
+  dateRangeTo        DateTime?
+  cronExpression     String?
+  timezone           String         @default("UTC")
+  specificDates      Json?
+  
+  // Processing Preferences
+  batchSize          Int            @default(5)
+  emailTypePriorities Json          @default("{}")
+  senderPriorities   Json          @default("{}")
+  llmFocus           LlmFocus      @default(general)
+  
+  // Execution Tracking
+  lastExecutedAt     DateTime?
+  nextExecutionAt    DateTime?
+  totalExecutions    Int           @default(0)
+  successfulExecutions Int         @default(0)
+  failedExecutions   Int           @default(0)
+  
+  // Metadata
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+  
+  // Relations
+  user               User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  emailAccount       EmailAccount  @relation(fields: [emailAccountId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, name])
+  @@index([nextExecutionAt, isEnabled])
+  @@index([userId, emailAccountId])
+  @@index([processingType, isEnabled])
+  @@map("processing_schedules")
+}
+
 model EmailAccount {
   id                    String        @id @default(uuid())
   userId                String // Link to user
@@ -232,6 +290,8 @@ model EmailAccount {
   imapPort              Int           @default(993)
   useSSL                Boolean       @default(true)
   isActive              Boolean       @default(true)
+  timezone              String        @default("UTC") // Added timezone support
+  hasInitialSchedule    Boolean       @default(false) // Track initial schedule creation
   lastSyncAt            DateTime?
   lastProcessedEmailId  String? // For incremental processing
   lastProcessedAt       DateTime?
@@ -244,6 +304,7 @@ model EmailAccount {
   // Relations
   user            User              @relation(fields: [userId], references: [id], onDelete: Cascade)
   processedEmails ProcessedEmails[]
+  processingSchedules ProcessingSchedule[]
 
   @@index([userId])
   @@index([email])
