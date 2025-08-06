@@ -74,6 +74,8 @@ model ProcessedEmails {
   emailAccount EmailAccount       @relation(fields: [emailAccountId], references: [id], onDelete: Cascade)
   entities     EntityExtraction[]
   actionItems  ActionItem[]
+  scheduleExecutionId String?
+  scheduleExecution  ScheduleExecution? @relation(fields: [scheduleExecutionId], references: [id])
 
   @@index([messageId])
   @@index([emailAccountId])
@@ -234,6 +236,13 @@ enum LlmFocus {
   urgency
 }
 
+enum ExecutionStatus {
+  RUNNING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
 model ProcessingSchedule {
   id                  String         @id @default(uuid())
   userId              String
@@ -242,7 +251,7 @@ model ProcessingSchedule {
   description         String?
   isEnabled           Boolean        @default(true)
   isDefault           Boolean        @default(false)
-  
+
   // Processing Configuration
   processingType      ProcessingType
   dateRangeFrom      DateTime?
@@ -250,33 +259,71 @@ model ProcessingSchedule {
   cronExpression     String?
   timezone           String         @default("UTC")
   specificDates      Json?
-  
+
   // Processing Preferences
   batchSize          Int            @default(5)
   emailTypePriorities Json          @default("{}")
   senderPriorities   Json          @default("{}")
   llmFocus           LlmFocus      @default(general)
-  
+
   // Execution Tracking
   lastExecutedAt     DateTime?
   nextExecutionAt    DateTime?
   totalExecutions    Int           @default(0)
   successfulExecutions Int         @default(0)
   failedExecutions   Int           @default(0)
-  
+
   // Metadata
   createdAt          DateTime      @default(now())
   updatedAt          DateTime      @updatedAt
-  
+
   // Relations
   user               User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   emailAccount       EmailAccount  @relation(fields: [emailAccountId], references: [id], onDelete: Cascade)
-  
+  executions ScheduleExecution[]
+
   @@unique([userId, name])
   @@index([nextExecutionAt, isEnabled])
   @@index([userId, emailAccountId])
   @@index([processingType, isEnabled])
   @@map("processing_schedules")
+}
+
+model ScheduleExecution {
+  id                           String          @id @default(uuid())
+  scheduleId                   String
+  status                      ExecutionStatus @default(RUNNING)
+  startedAt                   DateTime        @default(now())
+  completedAt                 DateTime?
+
+  // Progress Tracking
+  totalBatchesCount               Int             @default(0)
+  completedBatchesCount           Int             @default(0)
+  totalEmailsCount                Int             @default(0)
+  processedEmailsCount            Int             @default(0)
+  failedEmailsCount               Int             @default(0)
+  lastProcessedUid                String?
+
+  // Error Handling
+  attemptCount               Int             @default(1)
+  maxAttempts               Int             @default(3)
+  errorMessage              String?
+  errorDetails              Json?
+
+  // Performance Metrics
+  processingDurationMs       Int?
+  averageEmailProcessingTimeMs Int?
+
+  createdAt                 DateTime         @default(now())
+
+  // Relations
+  schedule                  ProcessingSchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  processedEmails          ProcessedEmails[]
+
+  @@index([scheduleId, status])
+  @@index([startedAt])
+  @@index([status])
+  @@map("schedule_executions")
 }
 
 model EmailAccount {
