@@ -52,7 +52,7 @@ model Session {
 model ProcessedEmails {
   id               String           @id @default(uuid())
   messageId        String           @unique // Gmail message ID for reference
-  emailAccountId   String // Link to email account
+  emailAccountId   String           // Link to email account
   subject          String
   fromAddress      String
   toAddresses      String[]
@@ -68,20 +68,28 @@ model ProcessedEmails {
   summary          String
   tags             String[]         @default([])
   confidence       Float
+  
+  // Enhanced importance scoring
+  importanceScore  Int              @default(50) // 0-100 scale
+  priorityReasoning String?         // Explanation for the priority/importance
+  
   createdAt        DateTime         @default(now())
   updatedAt        DateTime         @updatedAt
 
-  emailAccount        EmailAccount       @relation(fields: [emailAccountId], references: [id], onDelete: Cascade)
-  entities            EntityExtraction[]
-  actionItems         ActionItem[]
+  // Relations
+  emailAccount      EmailAccount       @relation(fields: [emailAccountId], references: [id], onDelete: Cascade)
+  entities          EntityExtraction[]
+  actionItems       ActionItem[]
   scheduleExecutionId String?
-  scheduleExecution   ScheduleExecution? @relation(fields: [scheduleExecutionId], references: [id])
+  scheduleExecution  ScheduleExecution? @relation(fields: [scheduleExecutionId], references: [id])
 
   @@index([messageId])
   @@index([emailAccountId])
   @@index([processingStatus])
   @@index([category])
   @@index([priority])
+  @@index([importanceScore], map: "idx_processed_emails_importance_score") // Descending order
+  @@index([receivedAt], map: "idx_processed_emails_received_at")
   @@map("processed_emails")
 }
 
