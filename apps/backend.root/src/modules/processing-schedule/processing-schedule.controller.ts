@@ -10,6 +10,8 @@ import {
   Param,
   Delete,
   NotFoundException,
+  UsePipes,
+  ValidationPipe,
 } from '@nestjs/common';
 
 import { ProcessingScheduleService } from './processing-schedule.service';
@@ -18,6 +20,7 @@ import {
   CreateProcessingScheduleDto,
   CronJobCalendarEntry,
   ProcessingAnalytics,
+  EnhancedProcessingAnalytics,
   ProcessingScheduleWithAccount,
   ScheduleExecutionStatus,
   UpdateProcessingScheduleDto,
@@ -26,6 +29,7 @@ import {
 import { ProcessingSchedule } from '@prisma/client';
 
 @Controller('api/processing-schedules')
+@UsePipes(new ValidationPipe({ transform: true, whitelist: true }))
 export class ProcessingSchedulesController {
   private readonly logger = new Logger(ProcessingSchedulesController.name);
 
@@ -194,5 +198,91 @@ export class ProcessingSchedulesController {
     @Param('userId') userId: string
   ): Promise<ProcessingAnalytics> {
     return this.processingScheduleService.getProcessingAnalytics(userId);
+  }
+
+  // ============================================================================
+  // ENHANCED API METHODS (from Stage 3 API endpoints document)
+  // ============================================================================
+
+  /**
+   * ENHANCED: Bulk operations for multiple schedules
+   */
+  @Post('bulk-enable')
+  async bulkEnableSchedules(
+    @Body() body: { scheduleIds: string[] }
+  ): Promise<{ success: boolean; updatedCount: number; errors?: string[] }> {
+    try {
+      const results = await Promise.allSettled(
+        body.scheduleIds.map(id => 
+          this.processingScheduleService.updateProcessingSchedule(id, { isEnabled: true })
+        )
+      );
+
+      const errors = results
+        .filter((result): result is PromiseRejectedResult => result.status === 'rejected')
+        .map(result => result.reason?.message || 'Unknown error');
+
+      return {
+        success: errors.length === 0,
+        updatedCount: results.filter(result => result.status === 'fulfilled').length,
+        errors: errors.length > 0 ? errors : undefined
+      };
+    } catch (error) {
+      this.logger.error('Failed to bulk enable schedules:', error);
+      throw new BadRequestException('Failed to bulk enable schedules');
+    }
+  }
+
+  @Post('bulk-disable')
+  async bulkDisableSchedules(
+    @Body() body: { scheduleIds: string[] }
+  ): Promise<{ success: boolean; updatedCount: number; errors?: string[] }> {
+    try {
+      const results = await Promise.allSettled(
+        body.scheduleIds.map(id => 
+          this.processingScheduleService.updateProcessingSchedule(id, { isEnabled: false })
+        )
+      );
+
+      const errors = results
+        .filter((result): result is PromiseRejectedResult => result.status === 'rejected')
+        .map(result => result.reason?.message || 'Unknown error');
+
+      return {
+        success: errors.length === 0,
+        updatedCount: results.filter(result => result.status === 'fulfilled').length,
+        errors: errors.length > 0 ? errors : undefined
+      };
+    } catch (error) {
+      this.logger.error('Failed to bulk disable schedules:', error);
+      throw new BadRequestException('Failed to bulk disable schedules');
+    }
+  }
+
+  /**
+   * ENHANCED: Detailed schedule information with execution statistics
+   */
+  @Get(':id/details')
+  async getScheduleDetails(
+    @Param('id') id: string
+  ): Promise<any> {
+    const schedule = await this.processingScheduleService.getScheduleById(id);
+    if (!schedule) {
+      throw new NotFoundException('Schedule not found');
+    }
+
+    // Get execution statistics
+    const executionStats = {
+      totalExecutions: schedule.totalExecutions || 0,
+      successfulExecutions: schedule.successfulExecutions || 0,
+      failedExecutions: schedule.failedExecutions || 0,
+      averageProcessingTime: undefined, // Would be calculated from execution history
+      lastExecutionAt: schedule.lastExecutedAt,
+    };
+
+    return {
+      ...schedule,
+      executionStats
+    };
   }
 }
