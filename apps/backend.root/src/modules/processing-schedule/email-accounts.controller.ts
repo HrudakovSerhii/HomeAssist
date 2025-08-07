@@ -1,8 +1,6 @@
 import {
   Controller,
   Get,
-  Post,
-  Body,
   Param,
   Logger,
   NotFoundException,
@@ -11,15 +9,6 @@ import {
 } from '@nestjs/common';
 import { ProcessingScheduleService } from './processing-schedule.service';
 import { ProcessingSchedule } from '@prisma/client';
-
-// Simple DTO for email account creation (would be expanded based on actual requirements)
-export class CreateEmailAccountDto {
-  userId: string;
-  email: string;
-  displayName?: string;
-  accountType: 'GMAIL' | 'OUTLOOK' | 'YAHOO' | 'IMAP_GENERIC';
-  // Additional fields would be added based on actual email account service
-}
 
 @Controller('api/email-accounts')
 @UsePipes(new ValidationPipe({ transform: true, whitelist: true }))
@@ -30,48 +19,6 @@ export class EmailAccountsController {
     private readonly scheduleService: ProcessingScheduleService
     // private readonly emailAccountService: EmailAccountService // Would be injected when available
   ) {}
-
-  @Post()
-  async createEmailAccount(
-    @Body() dto: CreateEmailAccountDto
-  ): Promise<{
-    account: any; // Would be EmailAccount type when service is available
-    defaultSchedule: ProcessingSchedule;
-    message: string;
-  }> {
-    // TODO: Implement actual email account creation when EmailAccountService is available
-    // const account = await this.emailAccountService.createEmailAccount(dto.userId, dto);
-    
-    // For now, return a mock account structure
-    const mockAccount = {
-      id: `account_${Date.now()}`,
-      email: dto.email,
-      displayName: dto.displayName || dto.email,
-      accountType: dto.accountType,
-      userId: dto.userId,
-      isActive: true,
-      createdAt: new Date(),
-    };
-
-    // Create default schedule for the new account (DATE_RANGE last month, disabled)
-    try {
-      const defaultSchedule = await this.scheduleService.createDefaultScheduleForNewAccount(
-        dto.userId,
-        mockAccount.id
-      );
-
-      this.logger.log(`Created default schedule for email account: ${dto.email}`);
-
-      return {
-        account: mockAccount,
-        defaultSchedule,
-        message: 'Email account created successfully with default processing schedule (last month, disabled until triggered)'
-      };
-    } catch (error) {
-      this.logger.error('Failed to create default schedule for email account:', error);
-      throw error;
-    }
-  }
 
   @Get(':id/schedules')
   async getAccountSchedules(
