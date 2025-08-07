@@ -53,28 +53,19 @@ export class EmailAccountsController {
       createdAt: new Date(),
     };
 
-    // Create default schedule for the new account
+    // Create default schedule for the new account (DATE_RANGE last month, disabled)
     try {
-      const defaultSchedule = await this.scheduleService.createProcessingSchedule({
-        userId: dto.userId,
-        emailAccountId: mockAccount.id,
-        name: `Default Schedule - ${dto.email}`,
-        description: `Automatically created default schedule for ${dto.email}`,
-        processingType: 'RECURRING',
-        cronExpression: '0 6 * * *', // Daily at 6 AM
-        timezone: 'UTC',
-        batchSize: 10,
-        isEnabled: true,
-        isDefault: true,
-        llmFocus: 'general',
-      });
+      const defaultSchedule = await this.scheduleService.createDefaultScheduleForNewAccount(
+        dto.userId,
+        mockAccount.id
+      );
 
       this.logger.log(`Created default schedule for email account: ${dto.email}`);
 
       return {
         account: mockAccount,
         defaultSchedule,
-        message: 'Email account created successfully with default processing schedule'
+        message: 'Email account created successfully with default processing schedule (last month, disabled until triggered)'
       };
     } catch (error) {
       this.logger.error('Failed to create default schedule for email account:', error);

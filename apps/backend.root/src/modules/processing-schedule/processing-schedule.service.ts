@@ -64,6 +64,7 @@ export class ProcessingScheduleService {
         description:
           'Initial processing of historical emails from the past month',
         isDefault: true,
+        isEnabled: false,
         processingType: ProcessingType.DATE_RANGE,
         dateRangeFrom: oneMonthAgo,
         dateRangeTo: new Date(),
