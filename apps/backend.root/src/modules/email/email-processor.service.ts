@@ -12,6 +12,10 @@ import {
   EmailBatchProcessingResult,
   ProcessedEmailWithRelations,
 } from '../../types/processed-email.types';
+import {
+  EnhancedEmailAnalysis,
+  ScoringBreakdown,
+} from '../../types/email-processing.types';
 
 import {
   ProcessingStatus,
@@ -460,5 +464,233 @@ export class EmailProcessorService {
     );
 
     return results;
+  }
+
+  // ============================================================================
+  // ENHANCED LLM RESPONSE PARSING METHODS (from enhanced-llm-response-parser.service.ts)
+  // ============================================================================
+
+  /**
+   * ENHANCED: Parse enhanced LLM response with comprehensive validation
+   * This method extends the basic parseLLMResponse with enhanced analysis features
+   */
+  async parseEnhancedLLMResponse(
+    response: string,
+    schedule?: any // ProcessingSchedule interface
+  ): Promise<EnhancedEmailAnalysis> {
+    try {
+      // Extract JSON from response
+      const jsonMatch = response.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) {
+        throw new Error('No JSON found in LLM response');
+      }
+
+      const parsedData = JSON.parse(jsonMatch[0]);
+      
+      // Validate and normalize the response
+      return {
+        category: this.validateEnhancedEmailCategory(parsedData.category),
+        priority: this.validateEnhancedPriority(parsedData.priority),
+        importance_score: this.validateImportanceScore(parsedData.importance_score),
+        priority_reasoning: parsedData.priority_reasoning || 'No reasoning provided',
+        scoring_breakdown: this.validateScoringBreakdown(parsedData.scoring_breakdown),
+        sentiment: this.validateEnhancedSentiment(parsedData.sentiment),
+        summary: parsedData.summary || 'No summary provided',
+        tags: Array.isArray(parsedData.tags) ? parsedData.tags : [],
+        confidence: Math.max(0, Math.min(1, parsedData.confidence || 0.8)),
+        entities: this.validateEnhancedEntities(parsedData.entities || []),
+        actionItems: this.validateEnhancedActionItems(parsedData.actionItems || [])
+      };
+      
+    } catch (error) {
+      this.logger.error('Failed to parse enhanced LLM response:', error);
+      
+      // Return fallback analysis
+      return this.createEnhancedFallbackAnalysis(response);
+    }
+  }
+
+  /**
+   * ENHANCED: Validate email category (extends the basic validation)
+   */
+  private validateEnhancedEmailCategory(category: any): EmailCategory {
+    const validCategories = Object.values(EmailCategory);
+    if (validCategories.includes(category)) {
+      return category;
+    }
+    this.logger.warn(`Invalid email category: ${category}, defaulting to PERSONAL`);
+    return EmailCategory.PERSONAL;
+  }
+
+  /**
+   * ENHANCED: Validate priority (extends the basic validation)
+   */
+  private validateEnhancedPriority(priority: any): Priority {
+    const validPriorities = Object.values(Priority);
+    if (validPriorities.includes(priority)) {
+      return priority;
+    }
+    this.logger.warn(`Invalid priority: ${priority}, defaulting to MEDIUM`);
+    return Priority.MEDIUM;
+  }
+
+  /**
+   * ENHANCED: Validate sentiment (extends the basic validation)
+   */
+  private validateEnhancedSentiment(sentiment: any): Sentiment {
+    const validSentiments = Object.values(Sentiment);
+    if (validSentiments.includes(sentiment)) {
+      return sentiment;
+    }
+    this.logger.warn(`Invalid sentiment: ${sentiment}, defaulting to NEUTRAL`);
+    return Sentiment.NEUTRAL;
+  }
+
+  /**
+   * ENHANCED: Validate importance score is within bounds
+   */
+  private validateImportanceScore(score: any): number {
+    const numScore = Number(score);
+    if (isNaN(numScore)) {
+      this.logger.warn(`Invalid importance score: ${score}, defaulting to 50`);
+      return 50;
+    }
+    return Math.max(0, Math.min(100, Math.round(numScore)));
+  }
+
+  /**
+   * ENHANCED: Validate scoring breakdown structure
+   */
+  private validateScoringBreakdown(breakdown: any): ScoringBreakdown {
+    if (!breakdown || typeof breakdown !== 'object') {
+      this.logger.warn('Invalid scoring breakdown, using default values');
+      return {
+        base_score: 50,
+        time_sensitivity: 0,
+        content_type: 0,
+        sender_importance: 0,
+        urgency_language: 0,
+        user_overrides: 0,
+        penalties: 0,
+        final_score: 50
+      };
+    }
+    
+    return {
+      base_score: Number(breakdown.base_score) || 50,
+      time_sensitivity: Number(breakdown.time_sensitivity) || 0,
+      content_type: Number(breakdown.content_type) || 0,
+      sender_importance: Number(breakdown.sender_importance) || 0,
+      urgency_language: Number(breakdown.urgency_language) || 0,
+      user_overrides: Number(breakdown.user_overrides) || 0,
+      penalties: Number(breakdown.penalties) || 0,
+      final_score: Number(breakdown.final_score) || 50
+    };
+  }
+
+  /**
+   * ENHANCED: Validate entities array (extends the basic validation)
+   */
+  private validateEnhancedEntities(entities: any[]): any[] {
+    if (!Array.isArray(entities)) {
+      return [];
+    }
+
+    return entities
+      .filter(entity => entity && typeof entity === 'object')
+      .map(entity => ({
+        id: entity.id,
+        entityType: entity.entityType, // Will be validated by existing entity processing
+        entityValue: String(entity.entityValue || ''),
+        confidence: Math.max(0, Math.min(1, Number(entity.confidence) || 0.5)),
+        startPosition: entity.startPosition ? Number(entity.startPosition) : undefined,
+        endPosition: entity.endPosition ? Number(entity.endPosition) : undefined,
+        context: entity.context ? String(entity.context) : undefined,
+      }))
+      .filter(entity => entity.entityValue); // Remove entities with empty values
+  }
+
+  /**
+   * ENHANCED: Validate action items array (extends the basic validation)
+   */
+  private validateEnhancedActionItems(actionItems: any[]): any[] {
+    if (!Array.isArray(actionItems)) {
+      return [];
+    }
+
+    return actionItems
+      .filter(item => item && typeof item === 'object')
+      .map(item => ({
+        id: item.id,
+        actionType: item.actionType, // Will be validated by existing action processing
+        description: String(item.description || ''),
+        priority: this.validateEnhancedPriority(item.priority),
+        dueDate: item.dueDate ? String(item.dueDate) : undefined,
+        completed: Boolean(item.completed)
+      }))
+      .filter(item => item.description); // Remove items with empty descriptions
+  }
+
+  /**
+   * ENHANCED: Create fallback analysis when parsing fails
+   */
+  private createEnhancedFallbackAnalysis(response: string): EnhancedEmailAnalysis {
+    this.logger.warn('Creating enhanced fallback analysis due to parsing failure');
+    
+    return {
+      category: EmailCategory.PERSONAL,
+      priority: Priority.MEDIUM,
+      importance_score: 50,
+      priority_reasoning: 'Failed to parse LLM response, using default scoring',
+      scoring_breakdown: {
+        base_score: 50,
+        time_sensitivity: 0,
+        content_type: 0,
+        sender_importance: 0,
+        urgency_language: 0,
+        user_overrides: 0,
+        penalties: 0,
+        final_score: 50
+      },
+      sentiment: Sentiment.NEUTRAL,
+      summary: response.substring(0, 200),
+      tags: ['parsing-error'],
+      confidence: 0.3,
+      entities: [],
+      actionItems: []
+    };
+  }
+
+  /**
+   * ENHANCED: Extract structured data from free text response (fallback method)
+   */
+  private extractStructuredDataFromText(response: string): Partial<EnhancedEmailAnalysis> {
+    const extracted: Partial<EnhancedEmailAnalysis> = {};
+    
+    // Try to extract category
+    const categoryMatch = response.match(/category[:\s]+(PERSONAL|WORK|MARKETING|NEWSLETTER|SUPPORT|NOTIFICATION|INVOICE|RECEIPT|APPOINTMENT)/i);
+    if (categoryMatch) {
+      extracted.category = categoryMatch[1].toUpperCase() as EmailCategory;
+    }
+    
+    // Try to extract priority
+    const priorityMatch = response.match(/priority[:\s]+(LOW|MEDIUM|HIGH|URGENT)/i);
+    if (priorityMatch) {
+      extracted.priority = priorityMatch[1].toUpperCase() as Priority;
+    }
+    
+    // Try to extract sentiment
+    const sentimentMatch = response.match(/sentiment[:\s]+(POSITIVE|NEGATIVE|NEUTRAL|MIXED)/i);
+    if (sentimentMatch) {
+      extracted.sentiment = sentimentMatch[1].toUpperCase() as Sentiment;
+    }
+    
+    // Try to extract importance score
+    const scoreMatch = response.match(/(?:importance_score|score)[:\s]+(\d+)/i);
+    if (scoreMatch) {
+      extracted.importance_score = parseInt(scoreMatch[1]);
+    }
+    
+    return extracted;
   }
 }
