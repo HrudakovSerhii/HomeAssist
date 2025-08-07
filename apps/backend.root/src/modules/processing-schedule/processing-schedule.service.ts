@@ -18,13 +18,22 @@ import {
 } from '../../types/schedule.types';
 
 @Injectable()
+/**
+ * Manages processing schedule configurations (CRUD), validation, conflict checks,
+ * and next-execution calculation. Does not perform email processing; delegates to orchestrator.
+ *
+ * First-version behavior notes:
+ * - New email accounts should get a default schedule that covers the last month.
+ * - That default should not auto-execute until user manually triggers it (e.g., set isEnabled=false).
+ */
 export class ProcessingScheduleService {
   private readonly logger = new Logger(ProcessingScheduleService.name);
 
   constructor(private readonly prisma: PrismaService) {}
 
   /**
-   * Create default "Initial" schedule when user adds first email account
+   * Creates a default initial schedule for a new email account covering the last month.
+   * Intended to be disabled by default so it won't run until manually triggered.
    */
   async createDefaultScheduleForNewAccount(
     userId: string,
@@ -79,7 +88,8 @@ export class ProcessingScheduleService {
   }
 
   /**
-   * Create user-defined processing schedule
+   * Creates a user-defined processing schedule and computes nextExecutionAt.
+   * Validation should be performed by validateScheduleConfiguration before calling this.
    */
   async createProcessingSchedule(
     dto: CreateProcessingScheduleDto
@@ -99,7 +109,7 @@ export class ProcessingScheduleService {
   }
 
   /**
-   * Update existing processing schedule
+   * Updates a processing schedule. If timing-related fields change, recomputes nextExecutionAt.
    */
   async updateProcessingSchedule(
     id: string,
@@ -125,7 +135,7 @@ export class ProcessingScheduleService {
   }
 
   /**
-   * Delete processing schedule
+   * Deletes a processing schedule by ID.
    */
   async deleteProcessingSchedule(id: string): Promise<void> {
     await this.prisma.processingSchedule.delete({
@@ -136,26 +146,8 @@ export class ProcessingScheduleService {
   }
 
   /**
-   * Get user's processing schedules
-   */
-  async getUserSchedules(
-    userId: string
-  ): Promise<ProcessingScheduleWithAccount[]> {
-    const schedules = await this.prisma.processingSchedule.findMany({
-      where: { userId },
-      include: {
-        emailAccount: {
-          select: { email: true, displayName: true },
-        },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
-
-    return schedules as ProcessingScheduleWithAccount[];
-  }
-
-  /**
-   * Get schedule execution status
+   * Returns the latest execution status summary for a schedule.
+   * Uses the most recent ScheduleExecution to compute progress metrics.
    */
   async getScheduleExecutionStatus(
     scheduleId: string
@@ -231,7 +223,8 @@ export class ProcessingScheduleService {
   }
 
   /**
-   * Validate schedule configuration
+   * Validates schedule configuration for required fields per processingType,
+   * and checks for duplicates/conflicts within the same user and email account.
    */
   async validateScheduleConfiguration(
     dto: CreateProcessingScheduleDto | UpdateProcessingScheduleDto,
@@ -261,7 +254,7 @@ export class ProcessingScheduleService {
         errors.push('Specific dates are required for specific date schedules.');
       } else {
         const now = new Date();
-        const futureDates = (dto.specificDates as Date[])
+        const futureDates = (dto.specificDates as unknown as (string | Date)[])
           .map((d) => new Date(d))
           .filter((d) => d > now);
 
@@ -306,7 +299,7 @@ export class ProcessingScheduleService {
             userId: dto.userId,
             emailAccountId: dto.emailAccountId,
             specificDates: {
-              array_contains: dto.specificDates as Date[],
+              array_contains: (dto.specificDates as unknown as (string | Date)[]),
             },
             ...(excludeId && { id: { not: excludeId } }),
           },
@@ -355,7 +348,8 @@ export class ProcessingScheduleService {
   }
 
   /**
-   * Check for cron execution conflicts
+   * Checks for cron execution time conflicts for the same timezone and returns
+   * conflicting schedule names and suggested alternative times.
    */
   async checkCronExecutionConflicts(
     cronExpression: string,
@@ -397,7 +391,7 @@ export class ProcessingScheduleService {
   }
 
   /**
-   * Check for specific date conflicts
+   * Checks for overlaps in specific scheduled dates and returns the conflicting dates.
    */
   async checkSpecificDateConflicts(
     specificDates: Date[],
@@ -430,7 +424,8 @@ export class ProcessingScheduleService {
   }
 
   /**
-   * Suggest alternative execution times
+   * Suggests alternative execution times relative to a base date.
+   * Currently suggests +1h, +2h, +3h, and same time next day.
    */
   suggestAlternativeExecutionTimes(baseDate: Date): Date[] {
     const alternatives: Date[] = [];
@@ -452,7 +447,7 @@ export class ProcessingScheduleService {
   }
 
   /**
-   * Get processing analytics
+   * Aggregates analytics across a user's schedules and recent executions.
    */
   async getProcessingAnalytics(userId: string): Promise<ProcessingAnalytics> {
     const schedules = await this.prisma.processingSchedule.findMany({
@@ -524,7 +519,10 @@ export class ProcessingScheduleService {
   }
 
   /**
-   * Calculate next execution time based on schedule type
+   * Computes nextExecutionAt from processingType:
+   * - DATE_RANGE: immediate (one-time)
+   * - RECURRING: next occurrence by cron expression
+   * - SPECIFIC_DATES: next future date
    */
   private async calculateNextExecutionTime(
     dto: CreateProcessingScheduleDto | UpdateProcessingScheduleDto
@@ -551,7 +549,7 @@ export class ProcessingScheduleService {
 
         // Find next future date
         const now = new Date();
-        const futureDates = (dto.specificDates as Date[])
+        const futureDates = (dto.specificDates as unknown as (string | Date)[])
           .map((d) => new Date(d))
           .filter((d) => d > now)
           .sort((a, b) => a.getTime() - b.getTime());
@@ -564,7 +562,7 @@ export class ProcessingScheduleService {
   }
 
   /**
-   * Get cron job calendar for monitoring
+   * Returns a calendar-like preview of future cron executions for enabled recurring schedules.
    */
   async getCronJobCalendar(): Promise<any[]> {
     // Changed from CronJobCalendarEntry to any[]

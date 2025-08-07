@@ -29,6 +29,16 @@ import {
 import config from '../../config/configuration';
 
 @Injectable()
+/**
+ * Canonical email analysis pipeline.
+ * - Ensures idempotency by skipping already processed messageIds.
+ * - Selects a template, generates a prompt, invokes the LLM, parses the response,
+ *   and persists a ProcessedEmail with ProcessingStatus.
+ * - Provides batch processing helpers and enhanced parsing fallbacks.
+ *
+ * Note: This service uses ProcessingStatus for email records. Schedule execution lifecycle
+ * state is managed by the scheduling module using ExecutionStatus.
+ */
 export class EmailProcessorService {
   private readonly logger = new Logger(EmailProcessorService.name);
 
@@ -40,7 +50,8 @@ export class EmailProcessorService {
   ) {}
 
   /**
-   * Process a single email with LLM analysis
+   * Processes a single email through the analysis pipeline.
+   * Skips processing if a ProcessedEmail exists for the same messageId.
    */
   async processEmail(
     accountId: EmailAccount['id'],
@@ -149,7 +160,8 @@ export class EmailProcessorService {
   }
 
   /**
-   * Create a ProcessedEmails record with the given status and optional extracted data
+   * Creates and persists a ProcessedEmail record with the provided status and
+   * optional extracted data and error message.
    */
   private async createProcessedEmail(
     accountId: EmailAccount['id'],
@@ -231,7 +243,7 @@ export class EmailProcessorService {
   }
 
   /**
-   * Check which emails have already been processed
+   * Retrieves messageIds that have already been processed.
    */
   async getAlreadyProcessedMessageIds(messageIds: string[]): Promise<string[]> {
     if (messageIds.length === 0) return [];
@@ -251,8 +263,8 @@ export class EmailProcessorService {
   }
 
   /**
-   * Process multiple emails in batch
-   * Note: This method now processes EmailMessage objects directly from IMAP
+   * Processes multiple emails sequentially, reporting aggregated results.
+   * Uses processEmail for each item to preserve idempotency and consistent behavior.
    */
   async processEmailBatch(
     accountId: EmailAccount['id'],
@@ -294,7 +306,7 @@ export class EmailProcessorService {
   }
 
   /**
-   * Generate LLM prompt from email and template
+   * Generates an LLM prompt from a template and raw email fields by simple token replacement.
    */
   private generatePrompt(
     email: EmailMessage,
@@ -318,7 +330,7 @@ export class EmailProcessorService {
   }
 
   /**
-   * Parse LLM response into structured data with validation
+   * Parses a raw LLM response into structured data with validation and safe fallbacks.
    */
   private async parseLLMResponse(response: string): Promise<ParsedLLMResponse> {
     try {

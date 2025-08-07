@@ -92,7 +92,7 @@ export interface EmailProcessingResult {
   success: boolean;
   error?: string;
   originalEmail?: Email;
-  data?: ProcessedEmail;
+  data?: Partial<ProcessedEmail>;
 }
 
 export interface EmailBatchProcessingResult {

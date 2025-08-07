@@ -15,8 +15,19 @@ import { EmailBatchProcessingResult } from '../../types/email-processing.types';
 import { EmailMessage } from '../../types/email.types';
 
 @Injectable()
-export class ExecutionScheduleService {
-  private readonly logger = new Logger(ExecutionScheduleService.name);
+/**
+ * Orchestrates time-based executions for processing schedules.
+ * - Polls due schedules via cron and groups executions by timestamp.
+ * - Acquires execution-time locks to avoid concurrent runs for the same slot.
+ * - Creates a ScheduleExecution and delegates email processing to domain pipeline.
+ * - Updates nextExecutionAt after completion, and releases locks reliably.
+ *
+ * Notes
+ * - ScheduleExecution.status must use ExecutionStatus; ProcessingStatus is for processed emails only.
+ * - This service computes the date window and fetches emails; transformation is delegated to the email module.
+ */
+export class ScheduleOrchestratorService {
+  private readonly logger = new Logger(ScheduleOrchestratorService.name);
 
   constructor(
     private readonly prisma: PrismaService,
@@ -25,7 +36,8 @@ export class ExecutionScheduleService {
   ) {}
 
   /**
-   * Main cron job - runs every minute to check for scheduled executions
+   * Cron entry point: checks for due schedules and executes them in conflict-free groups.
+   * Runs every minute by design; lightweight when there are no due schedules.
    */
   @Cron('* * * * *')
   async checkAndExecuteScheduledJobs(): Promise<void> {
@@ -44,7 +56,10 @@ export class ExecutionScheduleService {
   }
 
   /**
-   * Execute a group of schedules at the same time with proper locking
+   * Executes a group of schedules that share the same execution time.
+   * - Acquires a lock for the time slot to avoid duplicate runs.
+   * - Executes schedules in parallel with error isolation.
+   * - Always releases the lock at the end.
    */
   private async executeScheduleGroup(
     executionTime: Date,
@@ -110,7 +125,8 @@ export class ExecutionScheduleService {
   }
 
   /**
-   * Acquire execution lock for specific time and schedules
+   * Attempts to acquire a lock for a given execution timestamp and set of schedule IDs.
+   * Returns true when the lock is acquired; false when another worker already holds it.
    */
   private async acquireExecutionLock(
     executionTime: Date,
@@ -142,7 +158,8 @@ export class ExecutionScheduleService {
   }
 
   /**
-   * Release execution lock
+   * Releases the lock for the given execution timestamp.
+   * Best-effort; errors are logged but not thrown to avoid masking upstream results.
    */
   private async releaseExecutionLock(executionTime: Date): Promise<void> {
     try {
@@ -162,7 +179,13 @@ export class ExecutionScheduleService {
   }
 
   /**
-   * Execute a single processing schedule
+   * Executes a single schedule now.
+   * - Creates a ScheduleExecution (RUNNING)
+   * - Calculates date window by schedule type
+   * - Fetches emails for the window
+   * - Delegates processing to EmailProcessingService (schedule-aware)
+   * - Completes the execution and updates nextExecutionAt
+   * On error, marks execution as FAILED and rethrows.
    */
   async executeSchedule(
     schedule: ProcessingSchedule
@@ -200,7 +223,10 @@ export class ExecutionScheduleService {
   }
 
   /**
-   * Calculate date range based on schedule type
+   * Returns the inclusive date window used to fetch emails for a schedule.
+   * - DATE_RANGE: uses configured from/to
+   * - RECURRING: since last successful execution (or schedule creation) until now
+   * - SPECIFIC_DATES: 24h window around the next configured date
    */
   private async calculateDateRangeForSchedule(
     schedule: ProcessingSchedule
@@ -236,7 +262,8 @@ export class ExecutionScheduleService {
   }
 
   /**
-   * Find schedules ready for execution
+   * Finds schedules ready for execution (enabled and nextExecutionAt <= now).
+   * Includes email account for downstream fetch context.
    */
   private async findSchedulesReadyForExecution(
     now: Date
@@ -255,7 +282,7 @@ export class ExecutionScheduleService {
   }
 
   /**
-   * Group schedules by execution time to handle conflicts
+   * Groups schedules by their nextExecutionAt to coordinate locking and batch execution.
    */
   private groupSchedulesByExecutionTime(
     schedules: ProcessingSchedule[]
@@ -277,7 +304,8 @@ export class ExecutionScheduleService {
   }
 
   /**
-   * Create new schedule execution record
+   * Creates a new ScheduleExecution record with status RUNNING and start time.
+   * Use ExecutionStatus enum for status values.
    */
   private async createScheduleExecution(
     schedule: ProcessingSchedule
@@ -293,7 +321,8 @@ export class ExecutionScheduleService {
   }
 
   /**
-   * Complete schedule execution with results
+   * Marks the ScheduleExecution as COMPLETED and records summary metrics and duration.
+   * Note: This should use ExecutionStatus for the execution; ProcessingStatus applies to email records.
    */
   private async completeScheduleExecution(
     execution: ScheduleExecution,
@@ -314,7 +343,8 @@ export class ExecutionScheduleService {
   }
 
   /**
-   * Mark schedule execution as failed
+   * Marks the ScheduleExecution as FAILED and records error details and completion time.
+   * Note: Use ExecutionStatus for execution status.
    */
   private async failScheduleExecution(
     execution: ScheduleExecution,
@@ -335,7 +365,7 @@ export class ExecutionScheduleService {
   }
 
   /**
-   * Get last successful execution for a schedule
+   * Gets the last successful execution for a schedule, used to compute recurring windows.
    */
   private async getLastSuccessfulExecution(
     scheduleId: string
@@ -352,7 +382,8 @@ export class ExecutionScheduleService {
   }
 
   /**
-   * Get next specific date from schedule configuration
+   * Selects the next upcoming date from SPECIFIC_DATES configuration.
+   * Throws when no future dates are present.
    */
   private getNextSpecificDate(schedule: ProcessingSchedule): Date {
     const specificDates = schedule.specificDates as string[];
@@ -371,7 +402,10 @@ export class ExecutionScheduleService {
   }
 
   /**
-   * Update schedule's next execution time
+   * Calculates and persists the nextExecutionAt for the schedule after a run.
+   * - DATE_RANGE: disables schedule after one-time execution
+   * - RECURRING: parses cron with timezone to compute next occurrence
+   * - SPECIFIC_DATES: advances to the next future date or clears nextExecutionAt
    */
   private async updateScheduleNextExecution(
     schedule: ProcessingSchedule
@@ -427,7 +461,8 @@ export class ExecutionScheduleService {
   }
 
   /**
-   * Fetch emails for schedule processing
+   * Fetches emails for the given schedule and computed date window.
+   * Delegates to IMAP service with a bounded max per execution.
    */
   private async fetchEmailsForSchedule(
     schedule: ProcessingSchedule,

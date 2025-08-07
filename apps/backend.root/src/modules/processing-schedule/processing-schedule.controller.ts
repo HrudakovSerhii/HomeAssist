@@ -15,7 +15,7 @@ import {
 } from '@nestjs/common';
 
 import { ProcessingScheduleService } from './processing-schedule.service';
-import { ExecutionScheduleService } from './execution-schedule.service';
+import { ScheduleOrchestratorService } from './schedule-orchestrator.service';
 import {
   CreateProcessingScheduleDto,
   CronJobCalendarEntry,
@@ -35,7 +35,7 @@ export class ProcessingSchedulesController {
 
   constructor(
     private readonly processingScheduleService: ProcessingScheduleService,
-    private readonly executionSchedulingService: ExecutionScheduleService
+    private readonly executionSchedulingService: ScheduleOrchestratorService
   ) {}
 
   @Get()
