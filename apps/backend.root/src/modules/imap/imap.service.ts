@@ -125,7 +125,7 @@ export class ImapService {
       } catch (error) {
         this.logger.warn(`Cached connection for ${accountId} is stale:`, error);
       }
-      
+
       // Remove stale connection
       this.connections.delete(accountId);
       try {
@@ -248,6 +248,28 @@ export class ImapService {
   }
 
   /**
+   * Ensure healthy IMAP connection before processing
+   */
+  async ensureHealthyConnection(
+    accountId: string,
+    lastHealthyTime?: Date
+  ): Promise<void> {
+    // If last healthy check was less than 5 minutes ago, skip
+    if (
+      lastHealthyTime &&
+      new Date().getTime() - lastHealthyTime.getTime() < 5 * 60 * 1000
+    ) {
+      return;
+    }
+
+    // Test connection
+    const connectionTest = await this.testConnection(accountId);
+    if (!connectionTest.success) {
+      throw new Error(`IMAP connection unhealthy: ${connectionTest.message}`);
+    }
+  }
+
+  /**
    * Fetch and process emails in one streamlined operation
    * This uses the proven approach: fetchOne() with source + mailparser
    */
@@ -267,8 +289,10 @@ export class ImapService {
     try {
       this.logger.log(`Getting IMAP connection for account ${accountId}...`);
       const client = await this.getConnection(accountId);
-      this.logger.log(`IMAP connection established (${Date.now() - startTime}ms)`);
-      
+      this.logger.log(
+        `IMAP connection established (${Date.now() - startTime}ms)`
+      );
+
       const folder = options.folder || 'INBOX';
       this.logger.log(`Acquiring mailbox lock for folder: ${folder}...`);
       const mailbox = await client.getMailboxLock(folder);
@@ -367,7 +391,9 @@ export class ImapService {
         }
 
         this.logger.log(
-          `Successfully processed ${processedEmails.length}/${limit} emails in ${Date.now() - startTime}ms`
+          `Successfully processed ${
+            processedEmails.length
+          }/${limit} emails in ${Date.now() - startTime}ms`
         );
 
         return processedEmails;
@@ -444,5 +470,150 @@ export class ImapService {
 
     await Promise.all(promises);
     this.connections.clear();
+  }
+
+  /**
+   * Fetch emails within a date range
+   */
+  async fetchEmailsWithDateFilter(
+    accountId: string,
+    since: Date,
+    before?: Date,
+    limit: number = 1000
+  ): Promise<EmailMessage[]> {
+    const startTime = Date.now();
+    this.logger.log(
+      `Fetching emails for account ${accountId} from ${since.toISOString()} to ${
+        before?.toISOString() || 'now'
+      }`
+    );
+
+    try {
+      // Get IMAP connection
+      this.logger.log(`Getting IMAP connection for account ${accountId}...`);
+      const client = await this.getConnection(accountId);
+      this.logger.log(
+        `IMAP connection established (${Date.now() - startTime}ms)`
+      );
+
+      // Get mailbox lock
+      this.logger.log(`Acquiring mailbox lock for folder: INBOX...`);
+      const mailbox = await client.getMailboxLock('INBOX');
+      this.logger.log(`Mailbox lock acquired (${Date.now() - startTime}ms)`);
+
+      try {
+        // Build search criteria
+        const searchCriteria = {
+          since: since,
+          before: before || new Date(),
+        };
+
+        // Search and fetch messages
+        const emails: EmailMessage[] = [];
+        let count = 0;
+
+        for await (const message of client.fetch(searchCriteria, {
+          envelope: true,
+          source: true,
+          flags: true
+        })) {
+          if (count >= limit) break;
+
+          try {
+            // Parse email using mail-parser
+            const mail = await mailParser.simpleParser(message.source as any);
+
+            // Extract addresses safely
+            const extractAddresses = (field: any): string[] => {
+              if (!field) return [];
+              if (Array.isArray(field)) {
+                return field
+                  .map((addr: any) => addr.address || '')
+                  .filter(Boolean);
+              }
+              return field.address ? [field.address] : [];
+            };
+
+            const fromAddress = extractAddresses(mail.from)[0] || '';
+
+            // Convert mail-parser result to our EmailMessage format
+            const emailMessage: EmailMessage = {
+              uid: message.uid,
+              messageId: mail.messageId || `${message.uid}-${Date.now()}`,
+              subject: mail.subject || '(No Subject)',
+              from: fromAddress,
+              to: extractAddresses(mail.to),
+              cc: extractAddresses(mail.cc),
+              bcc: extractAddresses(mail.bcc),
+              date: mail.date || new Date(),
+              bodyText: mail.text ? String(mail.text) : undefined,
+              bodyHtml: mail.html ? String(mail.html) : undefined,
+              flags: Array.from(message.flags || [])
+            };
+
+            emails.push(emailMessage);
+            count++;
+
+            this.logger.log(
+              `Successfully processed email UID ${message.uid}: "${emailMessage.subject}"`
+            );
+          } catch (emailError) {
+            this.logger.error(
+              `Failed to process email UID ${message.uid}:`,
+              emailError
+            );
+            // Continue with other emails even if one fails
+          }
+        }
+
+        this.logger.log(
+          `Fetched ${emails.length} emails in ${Date.now() - startTime}ms`
+        );
+        return emails;
+
+      } finally {
+        // Always release the mailbox lock
+        mailbox.release();
+      }
+
+    } catch (error) {
+      this.logger.error(
+        `Failed to fetch emails for account ${accountId}:`,
+        error
+      );
+      throw error;
+    }
+  }
+
+  /**
+   * Extract text and HTML parts from message structure
+   */
+  private getMessageBodyParts(structure: any): { text?: string; html?: string } {
+    const result = { text: undefined, html: undefined };
+
+    // Handle single part message
+    if (structure.type === 'text') {
+      if (structure.subtype === 'plain') {
+        result.text = structure.content || '';
+      } else if (structure.subtype === 'html') {
+        result.html = structure.content || '';
+      }
+      return result;
+    }
+
+    // Handle multipart message
+    if (structure.type === 'multipart' && Array.isArray(structure.childNodes)) {
+      for (const part of structure.childNodes) {
+        if (part.type === 'text') {
+          if (part.subtype === 'plain') {
+            result.text = part.content || '';
+          } else if (part.subtype === 'html') {
+            result.html = part.content || '';
+          }
+        }
+      }
+    }
+
+    return result;
   }
 }

@@ -477,4 +477,74 @@ export class TemplateService {
 
     return results;
   }
+
+  /**
+   * Generate prompt from template with data
+   */
+  async generatePrompt(
+    templateName: string,
+    data: {
+      email: EmailMessage;
+      priorityHints?: any;
+      userPreferences?: any;
+    }
+  ): Promise<string> {
+    const template = await this.getTemplateByName(templateName);
+    if (!template) {
+      throw new HttpException(`Template ${templateName} not found`, HttpStatus.NOT_FOUND);
+    }
+
+    // Replace template variables with data
+    let prompt = template.template;
+    
+    // Replace email data
+    prompt = prompt.replace('{{subject}}', data.email.subject || '');
+    prompt = prompt.replace('{{from}}', data.email.from || '');
+    prompt = prompt.replace('{{to}}', Array.isArray(data.email.to) ? data.email.to.join(', ') : data.email.to || '');
+    prompt = prompt.replace('{{body}}', data.email.bodyText || data.email.bodyHtml || '');
+
+    // Add priority hints if available
+    if (data.priorityHints) {
+      prompt = prompt.replace('{{priorityHints}}', JSON.stringify(data.priorityHints, null, 2));
+    } else {
+      prompt = prompt.replace('{{priorityHints}}', '{}');
+    }
+
+    // Add user preferences if available
+    if (data.userPreferences) {
+      prompt = prompt.replace('{{userPreferences}}', JSON.stringify(data.userPreferences, null, 2));
+    } else {
+      prompt = prompt.replace('{{userPreferences}}', '{}');
+    }
+
+    return prompt;
+  }
+
+  /**
+   * Parse LLM response according to template schema
+   */
+  async parseResponse(templateName: string, response: string): Promise<any> {
+    const template = await this.getTemplateByName(templateName);
+    if (!template) {
+      throw new HttpException(`Template ${templateName} not found`, HttpStatus.NOT_FOUND);
+    }
+
+    try {
+      // Parse JSON response
+      const parsed = JSON.parse(response);
+
+      // Validate against schema
+      const validationResult = await this.validateLLMResponse(parsed);
+      if (!validationResult.isValid) {
+        throw new Error(`Invalid response format: ${validationResult.errors.join(', ')}`);
+      }
+
+      return parsed;
+    } catch (error) {
+      throw new HttpException(
+        `Failed to parse LLM response: ${error.message}`,
+        HttpStatus.BAD_REQUEST
+      );
+    }
+  }
 }

@@ -6,12 +6,12 @@ import { EmailIngestionResults } from '../../types/processed-email.types';
 
 @Injectable()
 export class EmailIngestionService {
-  private readonly logger = new Logger(EmailIngestionService.name);
+  protected readonly logger = new Logger(EmailIngestionService.name);
 
   constructor(
-    private readonly prisma: PrismaService,
-    private readonly imapService: ImapService,
-    private readonly emailProcessor: EmailProcessorService
+    protected readonly prisma: PrismaService,
+    protected readonly imapService: ImapService,
+    protected readonly emailProcessor: EmailProcessorService
   ) {}
 
   async ingestUserEmails(
