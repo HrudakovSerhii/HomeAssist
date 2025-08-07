@@ -7,7 +7,6 @@ import {
   ExecutionStatus,
   Prisma,
   ProcessingSchedule,
-  ProcessingStatus,
   ProcessingType,
   ScheduleExecution,
 } from '@prisma/client';

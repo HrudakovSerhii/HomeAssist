@@ -9,7 +9,6 @@ import { EmailIngestionService } from './email-ingestion.service';
 import { EmailProcessingService } from './email-processing.service';
 import { EmailPriorityService } from './email-priority.service';
 import { EmailAnalysisService } from './email-analysis.service';
-import { ScheduleExecutionService } from './schedule-execution.service';
 import { EmailScheduleProcessorService } from './email-schedule-processor.service';
 import { LLMModule } from '../llm/llm.module';
 import { PrismaModule } from '../../common/prisma/prisma.module';
@@ -17,6 +16,7 @@ import { ProcessTemplateModule } from '../process-template/process-template.modu
 import { AuthService } from '../auth/auth.service';
 import { ImapService } from '../imap/imap.service';
 import { EncryptionService } from '../encrypt/encryption.service';
+import { ExecutionTrackingService } from '../processing-schedule/execution-tracking.service';
 
 @Module({
   imports: [ConfigModule, PrismaModule, LLMModule, ProcessTemplateModule],
@@ -31,8 +31,8 @@ import { EncryptionService } from '../encrypt/encryption.service';
     EmailProcessingService,
     EmailPriorityService,
     EmailAnalysisService,
-    ScheduleExecutionService,
     EmailScheduleProcessorService,
+    ExecutionTrackingService,
     EmailGateway,
   ],
   exports: [
@@ -45,8 +45,8 @@ import { EncryptionService } from '../encrypt/encryption.service';
     EmailProcessingService,
     EmailPriorityService,
     EmailAnalysisService,
-    ScheduleExecutionService,
     EmailScheduleProcessorService,
+    ExecutionTrackingService,
     EmailGateway,
   ],
 })

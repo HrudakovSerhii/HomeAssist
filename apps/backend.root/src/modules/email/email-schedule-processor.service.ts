@@ -9,7 +9,7 @@ import {
 } from '../../types/email-processing.types';
 import { EmailPriorityService } from './email-priority.service';
 import { EmailAnalysisService } from './email-analysis.service';
-import { ScheduleExecutionService } from './schedule-execution.service';
+import { ExecutionTrackingService } from '../processing-schedule/execution-tracking.service';
 
 @Injectable()
 /**
@@ -29,7 +29,7 @@ export class EmailScheduleProcessorService {
     private readonly imapService: ImapService,
     private readonly priorityService: EmailPriorityService,
     private readonly analysisService: EmailAnalysisService,
-    private readonly executionService: ScheduleExecutionService
+    private readonly executionService: ExecutionTrackingService
   ) {}
 
   /**
@@ -73,7 +73,7 @@ export class EmailScheduleProcessorService {
         results.push(...batchResults);
 
         // Update execution progress
-        await this.executionService.updateExecutionProgress(execution.id, {
+        await this.executionService.updateProgress(execution.id, {
           completedBatchesCount: i + 1,
           totalBatchesCount: batches.length,
           processedEmailsCount: results.filter((r) => r.success).length,
@@ -164,8 +164,8 @@ export class EmailScheduleProcessorService {
 
         // Store with execution tracking
         const processedEmail = await this.executionService.storeProcessedEmail(
-          finalResult,
-          executionId
+          executionId,
+          finalResult
         );
 
         results.push({
