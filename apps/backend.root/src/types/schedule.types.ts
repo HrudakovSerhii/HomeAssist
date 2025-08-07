@@ -1,4 +1,4 @@
-import { LlmFocus, ProcessingType, EmailCategory, Priority } from '@prisma/client';
+import { LlmFocus, ProcessingType, EmailCategory, Priority, Prisma } from '@prisma/client';
 import {
   IsString,
   IsNotEmpty,
@@ -248,29 +248,13 @@ export class UpdateProcessingScheduleDto {
 }
 
 // Response type with all fields including relations
-export interface ProcessingScheduleWithAccount
-  extends Required<BaseProcessingSchedule> {
-  // Additional fields not in DTO
-  id: string;
-  userId: string;
-
-  // Execution Tracking
-  lastExecutedAt?: Date;
-  nextExecutionAt?: Date;
-  totalExecutions: number;
-  successfulExecutions: number;
-  failedExecutions: number;
-
-  // Metadata
-  createdAt: Date;
-  updatedAt: Date;
-
-  // Included relation
-  emailAccount: {
-    email: string;
-    displayName?: string;
+export type ProcessingScheduleWithAccount = Prisma.ProcessingScheduleGetPayload<{
+  include: {
+    emailAccount: {
+      select: { email: true; displayName: true };
+    };
   };
-}
+}>;
 
 export interface CronJobCalendarEntry {
   configId: string;

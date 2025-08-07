@@ -348,6 +348,25 @@ export class ProcessingScheduleService {
   }
 
   /**
+   * Returns user's processing schedules with linked account info for display.
+   */
+  async getUserSchedules(
+    userId: string
+  ): Promise<ProcessingScheduleWithAccount[]> {
+    const schedules = await this.prisma.processingSchedule.findMany({
+      where: { userId },
+      include: {
+        emailAccount: {
+          select: { email: true, displayName: true },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return schedules;
+  }
+
+  /**
    * Checks for cron execution time conflicts for the same timezone and returns
    * conflicting schedule names and suggested alternative times.
    */
