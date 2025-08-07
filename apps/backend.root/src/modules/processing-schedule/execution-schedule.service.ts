@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { ImapService } from '../imap/imap.service';
-import { EnhancedEmailProcessingService } from './enhanced-email-processing.service';
+import { EmailProcessingService } from '../email/email-processing.service';
 import {
   ExecutionStatus,
   Prisma,
@@ -11,19 +11,16 @@ import {
   ProcessingType,
   ScheduleExecution,
 } from '@prisma/client';
-import {
-  Email,
-  EmailBatchProcessingResult,
-} from '../../types/email-processing.types';
+import { EmailBatchProcessingResult } from '../../types/email-processing.types';
 import { EmailMessage } from '../../types/email.types';
 
 @Injectable()
-export class UnifiedSchedulingService {
-  private readonly logger = new Logger(UnifiedSchedulingService.name);
+export class ExecutionScheduleService {
+  private readonly logger = new Logger(ExecutionScheduleService.name);
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly emailProcessingService: EnhancedEmailProcessingService,
+    private readonly emailProcessingService: EmailProcessingService,
     private readonly imapService: ImapService
   ) {}
 

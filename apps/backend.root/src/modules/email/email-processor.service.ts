@@ -1,11 +1,12 @@
-import { Injectable, HttpException, HttpStatus, Logger } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 
 import { LLMService } from '../llm/llm.service';
 import { TemplateService } from '../process-template/template.service';
 import { EntityValueParserService } from '../process-template/entity-value-parser.service';
 import { PrismaService } from '../../common/prisma/prisma.service';
 
-import { EmailMessage, ParsedLLMResponse } from '../../types/email.types';
+import { EmailMessage } from '../../types/email.types';
+import { ParsedLLMResponse } from '../../types/llm.types';
 import {
   EmailProcessingResult,
   EmailBatchProcessingResult,
@@ -47,17 +48,20 @@ export class EmailProcessorService {
 
     try {
       // Check if email has already been processed
-      const existingProcessedEmail = await this.prisma.processedEmails.findUnique({
-        where: { messageId: email.messageId },
-        include: {
-          entities: true,
-          actionItems: true,
-        },
-      });
+      const existingProcessedEmail =
+        await this.prisma.processedEmails.findUnique({
+          where: { messageId: email.messageId },
+          include: {
+            entities: true,
+            actionItems: true,
+          },
+        });
 
       if (existingProcessedEmail) {
-        this.logger.log(`Email already processed, skipping: "${email.subject}" (messageId: ${email.messageId})`);
-        
+        this.logger.log(
+          `Email already processed, skipping: "${email.subject}" (messageId: ${email.messageId})`
+        );
+
         return {
           messageId: email.messageId,
           subject: email.subject,
@@ -239,7 +243,7 @@ export class EmailProcessorService {
       },
     });
 
-    return existingEmails.map(email => email.messageId);
+    return existingEmails.map((email) => email.messageId);
   }
 
   /**
@@ -258,9 +262,11 @@ export class EmailProcessorService {
     };
 
     // Log batch start info
-    const messageIds = emails.map(email => email.messageId);
-    const alreadyProcessed = await this.getAlreadyProcessedMessageIds(messageIds);
-    
+    const messageIds = emails.map((email) => email.messageId);
+    const alreadyProcessed = await this.getAlreadyProcessedMessageIds(
+      messageIds
+    );
+
     this.logger.log(
       `Starting batch processing: ${emails.length} emails (${alreadyProcessed.length} already processed)`
     );

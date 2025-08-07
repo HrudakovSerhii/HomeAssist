@@ -11,18 +11,17 @@ import {
   ProcessingStatus,
 } from '@prisma/client';
 import {
-  Email,
   EmailBatchProcessingResult,
   EmailProcessingResult,
   ProcessedEmail,
 } from '../../types/email-processing.types';
 import { EmailIngestionService } from './email-ingestion.service';
 import { ConfigService } from '@nestjs/config';
-import { EmailMessage } from '../../types/email.types';
+import { Email, EmailMessage } from '../../types/email.types';
 
 @Injectable()
-export class EnhancedEmailProcessingService extends EmailIngestionService {
-  protected readonly logger = new Logger(EnhancedEmailProcessingService.name);
+export class EmailProcessingService extends EmailIngestionService {
+  protected readonly logger = new Logger(EmailProcessingService.name);
 
   constructor(
     protected readonly prisma: PrismaService,
