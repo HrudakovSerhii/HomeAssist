@@ -160,6 +160,25 @@ export class EmailProcessorService {
   }
 
   /**
+   * Processes a single email using a template selected by schedule focus.
+   * Delegates to processEmail with the derived template name.
+   */
+  async processEmailWithScheduleFocus(
+    accountId: EmailAccount['id'],
+    email: EmailMessage,
+    schedule: { llmFocus?: string }
+  ): Promise<EmailProcessingResult> {
+    const templateByFocus: Record<string, string> = {
+      sentiment: 'sentiment-analysis',
+      urgency: 'urgency-detector',
+      general: 'email-analysis',
+    };
+
+    const templateName = templateByFocus[schedule.llmFocus || 'general'] || 'email-analysis';
+    return this.processEmail(accountId, email, templateName);
+  }
+
+  /**
    * Creates and persists a ProcessedEmail record with the provided status and
    * optional extracted data and error message.
    */

@@ -8,7 +8,7 @@ import {
   EmailProcessingResult,
 } from '../../types/email-processing.types';
 import { EmailPriorityService } from './email-priority.service';
-import { EmailAnalysisService } from './email-analysis.service';
+import { EmailProcessorService } from './email-processor.service';
 import { ExecutionTrackingService } from '../processing-schedule/execution-tracking.service';
 
 @Injectable()
@@ -28,7 +28,7 @@ export class EmailScheduleProcessorService {
     private readonly prisma: PrismaService,
     private readonly imapService: ImapService,
     private readonly priorityService: EmailPriorityService,
-    private readonly analysisService: EmailAnalysisService,
+    private readonly processorService: EmailProcessorService,
     private readonly executionService: ExecutionTrackingService
   ) {}
 
@@ -153,10 +153,10 @@ export class EmailScheduleProcessorService {
         );
 
         // Process with LLM (enhanced with schedule preferences)
-        const llmResult = await this.analysisService.processEmailWithEnhancedPriority(
+        const llmResult = await this.processorService.processEmailWithScheduleFocus(
           schedule.emailAccountId,
           preprocessedEmail,
-          schedule
+          { llmFocus: schedule.llmFocus as any }
         );
 
         // Apply post-processing priority adjustments

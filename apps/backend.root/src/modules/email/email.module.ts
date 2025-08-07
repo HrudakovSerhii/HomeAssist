@@ -8,7 +8,6 @@ import { EmailGateway } from './email.gateway';
 import { EmailIngestionService } from './email-ingestion.service';
 import { EmailProcessingService } from './email-processing.service';
 import { EmailPriorityService } from './email-priority.service';
-import { EmailAnalysisService } from './email-analysis.service';
 import { EmailScheduleProcessorService } from './email-schedule-processor.service';
 import { LLMModule } from '../llm/llm.module';
 import { PrismaModule } from '../../common/prisma/prisma.module';
@@ -30,7 +29,6 @@ import { ExecutionTrackingService } from '../processing-schedule/execution-track
     EmailIngestionService,
     EmailProcessingService,
     EmailPriorityService,
-    EmailAnalysisService,
     EmailScheduleProcessorService,
     ExecutionTrackingService,
     EmailGateway,
@@ -44,7 +42,6 @@ import { ExecutionTrackingService } from '../processing-schedule/execution-track
     EmailIngestionService,
     EmailProcessingService,
     EmailPriorityService,
-    EmailAnalysisService,
     EmailScheduleProcessorService,
     ExecutionTrackingService,
     EmailGateway,
