@@ -1,7 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ScheduleModule } from '@nestjs/schedule';
 import { ProcessingSchedulesController } from './processing-schedule.controller';
-import { EmailAccountsController } from './email-accounts.controller';
 import { ProcessingScheduleService } from './processing-schedule.service';
 import { ScheduleOrchestratorService } from './schedule-orchestrator.service';
 import { ExecutionTrackingService } from './execution-tracking.service';
@@ -14,7 +13,7 @@ import { EmailModule } from '../email/email.module';
     PrismaModule,
     EmailModule,
   ],
-  controllers: [ProcessingSchedulesController, EmailAccountsController],
+  controllers: [ProcessingSchedulesController],
   providers: [ProcessingScheduleService, ScheduleOrchestratorService, ExecutionTrackingService],
   exports: [ProcessingScheduleService, ScheduleOrchestratorService, ExecutionTrackingService],
 })
