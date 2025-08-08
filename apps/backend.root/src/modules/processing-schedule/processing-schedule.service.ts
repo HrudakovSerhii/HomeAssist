@@ -368,6 +368,16 @@ export class ProcessingScheduleService {
   }
 
   /**
+   * Returns schedules for a specific email account ID.
+   */
+  async getAccountSchedules(accountId: string): Promise<ProcessingSchedule[]> {
+    return this.prisma.processingSchedule.findMany({
+      where: { emailAccountId: accountId },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  /**
    * Checks for cron execution time conflicts for the same timezone and returns
    * conflicting schedule names and suggested alternative times.
    */
