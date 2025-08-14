@@ -239,9 +239,13 @@ export class ProcessingScheduleService {
         errors.push('Cron expression is required for recurring schedules.');
       } else {
         try {
-          new CronJob(dto.cronExpression, () => {
-            // Empty function for validation only
-          });
+          new CronJob(
+            dto.cronExpression,
+            () => null,
+            undefined,
+            false,
+            dto.timezone || 'UTC'
+          );
         } catch (error) {
           errors.push(
             `Invalid cron expression: ${error.message}. Please check the format.`
@@ -404,9 +408,13 @@ export class ProcessingScheduleService {
     }
 
     try {
-      const job = new CronJob(cronExpression, () => {
-        // Empty function for validation only
-      });
+      const job = new CronJob(
+        cronExpression,
+        () => null,
+        undefined,
+        false,
+        timezone || 'UTC'
+      );
       const nextExecution = job.nextDate().toJSDate();
 
       return [{
@@ -565,9 +573,13 @@ export class ProcessingScheduleService {
       case ProcessingType.RECURRING: {
         if (!dto.cronExpression) return null;
         try {
-          const job = new CronJob(dto.cronExpression, () => {
-            /* This is a placeholder function as we only need to calculate the next execution date */
-          });
+          const job = new CronJob(
+            dto.cronExpression,
+            () => null,
+            undefined,
+            false,
+            dto.timezone || 'UTC'
+          );
           return job.nextDate().toJSDate();
         } catch (error) {
           this.logger.error('Invalid cron expression:', error);
@@ -611,9 +623,13 @@ export class ProcessingScheduleService {
 
     return schedules.map((schedule) => {
       try {
-        const job = new CronJob(schedule.cronExpression, () => {
-          /* This is a placeholder function as we only need to calculate the next execution date */
-        });
+        const job = new CronJob(
+          schedule.cronExpression,
+          () => null,
+          undefined,
+          false,
+          schedule.timezone || 'UTC'
+        );
         const nextExecutions = [];
         for (let i = 0; i < 10; i++) {
           nextExecutions.push(job.nextDate().toJSDate());

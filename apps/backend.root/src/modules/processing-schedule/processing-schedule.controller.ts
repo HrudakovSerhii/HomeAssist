@@ -28,7 +28,7 @@ import {
 } from '../../types/schedule.types';
 import { ProcessingSchedule } from '@prisma/client';
 
-@Controller('api/processing-schedules')
+@Controller('processing-schedules')
 @UsePipes(new ValidationPipe({ transform: true, whitelist: true }))
 export class ProcessingSchedulesController {
   private readonly logger = new Logger(ProcessingSchedulesController.name);
@@ -213,19 +213,25 @@ export class ProcessingSchedulesController {
   ): Promise<{ success: boolean; updatedCount: number; errors?: string[] }> {
     try {
       const results = await Promise.allSettled(
-        body.scheduleIds.map(id => 
-          this.processingScheduleService.updateProcessingSchedule(id, { isEnabled: true })
+        body.scheduleIds.map((id) =>
+          this.processingScheduleService.updateProcessingSchedule(id, {
+            isEnabled: true,
+          })
         )
       );
 
       const errors = results
-        .filter((result): result is PromiseRejectedResult => result.status === 'rejected')
-        .map(result => result.reason?.message || 'Unknown error');
+        .filter(
+          (result): result is PromiseRejectedResult =>
+            result.status === 'rejected'
+        )
+        .map((result) => result.reason?.message || 'Unknown error');
 
       return {
         success: errors.length === 0,
-        updatedCount: results.filter(result => result.status === 'fulfilled').length,
-        errors: errors.length > 0 ? errors : undefined
+        updatedCount: results.filter((result) => result.status === 'fulfilled')
+          .length,
+        errors: errors.length > 0 ? errors : undefined,
       };
     } catch (error) {
       this.logger.error('Failed to bulk enable schedules:', error);
@@ -239,19 +245,25 @@ export class ProcessingSchedulesController {
   ): Promise<{ success: boolean; updatedCount: number; errors?: string[] }> {
     try {
       const results = await Promise.allSettled(
-        body.scheduleIds.map(id => 
-          this.processingScheduleService.updateProcessingSchedule(id, { isEnabled: false })
+        body.scheduleIds.map((id) =>
+          this.processingScheduleService.updateProcessingSchedule(id, {
+            isEnabled: false,
+          })
         )
       );
 
       const errors = results
-        .filter((result): result is PromiseRejectedResult => result.status === 'rejected')
-        .map(result => result.reason?.message || 'Unknown error');
+        .filter(
+          (result): result is PromiseRejectedResult =>
+            result.status === 'rejected'
+        )
+        .map((result) => result.reason?.message || 'Unknown error');
 
       return {
         success: errors.length === 0,
-        updatedCount: results.filter(result => result.status === 'fulfilled').length,
-        errors: errors.length > 0 ? errors : undefined
+        updatedCount: results.filter((result) => result.status === 'fulfilled')
+          .length,
+        errors: errors.length > 0 ? errors : undefined,
       };
     } catch (error) {
       this.logger.error('Failed to bulk disable schedules:', error);
@@ -263,9 +275,7 @@ export class ProcessingSchedulesController {
    * ENHANCED: Detailed schedule information with execution statistics
    */
   @Get(':id/details')
-  async getScheduleDetails(
-    @Param('id') id: string
-  ): Promise<any> {
+  async getScheduleDetails(@Param('id') id: string): Promise<any> {
     const schedule = await this.processingScheduleService.getScheduleById(id);
     if (!schedule) {
       throw new NotFoundException('Schedule not found');
@@ -282,7 +292,7 @@ export class ProcessingSchedulesController {
 
     return {
       ...schedule,
-      executionStats
+      executionStats,
     };
   }
 }

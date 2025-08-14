@@ -16,6 +16,7 @@ import { AuthService } from '../auth/auth.service';
 import { ImapService } from '../imap/imap.service';
 import { EncryptionService } from '../encrypt/encryption.service';
 import { ExecutionTrackingService } from '../processing-schedule/execution-tracking.service';
+import { ProcessingScheduleService } from '../processing-schedule/processing-schedule.service';
 
 @Module({
   imports: [ConfigModule, PrismaModule, LLMModule, ProcessTemplateModule],
@@ -32,6 +33,7 @@ import { ExecutionTrackingService } from '../processing-schedule/execution-track
     EmailScheduleProcessorService,
     ExecutionTrackingService,
     EmailGateway,
+    ProcessingScheduleService,
   ],
   exports: [
     EmailService,

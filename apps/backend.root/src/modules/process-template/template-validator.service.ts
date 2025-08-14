@@ -8,8 +8,8 @@ import {
 } from '@prisma/client';
 import {
   EmailAnalysisTemplate,
-  TemplateValidationResult,
 } from '../../types/email.types';
+import { TemplateValidationResult } from '../../types/template.types';
 import {
   DynamicEntityManagerService,
   EntityTypeSuggestion,

@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { Cron } from '@nestjs/schedule';
+import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { ImapService } from '../imap/imap.service';
 import { EmailProcessingService } from '../email/email-processing.service';
@@ -12,6 +12,7 @@ import {
 } from '@prisma/client';
 import { EmailBatchProcessingResult } from '../../types/email-processing.types';
 import { EmailMessage } from '../../types/email.types';
+import { CronJob } from 'cron';
 
 @Injectable()
 /**
@@ -38,7 +39,7 @@ export class ScheduleOrchestratorService {
    * Cron entry point: checks for due schedules and executes them in conflict-free groups.
    * Runs every minute by design; lightweight when there are no due schedules.
    */
-  @Cron('* * * * *')
+  @Cron(CronExpression.EVERY_MINUTE)
   async checkAndExecuteScheduledJobs(): Promise<void> {
     const now = new Date();
 
@@ -62,7 +63,7 @@ export class ScheduleOrchestratorService {
    */
   private async executeScheduleGroup(
     executionTime: Date,
-    schedules: Prisma.ProcessingScheduleGetPayload<{}>[]
+    schedules: ProcessingSchedule[]
   ): Promise<void> {
     const scheduleIds = schedules.map((s) => s.id);
 
@@ -237,21 +238,23 @@ export class ScheduleOrchestratorService {
           before: schedule.dateRangeTo,
         };
 
-      case ProcessingType.RECURRING:
+      case ProcessingType.RECURRING: {
         // For recurring schedules, process emails since last execution
         const lastExecution = await this.getLastSuccessfulExecution(
           schedule.id
         );
         const since = lastExecution?.completedAt || schedule.createdAt;
         return { since, before: new Date() };
+      }
 
-      case ProcessingType.SPECIFIC_DATES:
+      case ProcessingType.SPECIFIC_DATES: {
         // Process emails from the next specific date
         const nextDate = this.getNextSpecificDate(schedule);
         return {
           since: nextDate,
           before: new Date(nextDate.getTime() + 24 * 60 * 60 * 1000), // +1 day
         };
+      }
 
       default:
         throw new Error(
@@ -332,7 +335,7 @@ export class ScheduleOrchestratorService {
     await this.prisma.scheduleExecution.update({
       where: { id: execution.id },
       data: {
-        status: ProcessingStatus.COMPLETED,
+        status: ExecutionStatus.COMPLETED,
         completedAt: new Date(),
         processedEmailsCount: results.processed,
         failedEmailsCount: results.failed,
@@ -352,7 +355,7 @@ export class ScheduleOrchestratorService {
     await this.prisma.scheduleExecution.update({
       where: { id: execution.id },
       data: {
-        status: ProcessingStatus.FAILED,
+        status: ExecutionStatus.FAILED,
         completedAt: new Date(),
         errorMessage: error.message,
         errorDetails: {
@@ -372,7 +375,7 @@ export class ScheduleOrchestratorService {
     return this.prisma.scheduleExecution.findFirst({
       where: {
         scheduleId,
-        status: ProcessingStatus.COMPLETED,
+        status: ExecutionStatus.COMPLETED,
       },
       orderBy: {
         completedAt: 'desc',
@@ -420,20 +423,22 @@ export class ScheduleOrchestratorService {
         });
         return;
 
-      case ProcessingType.RECURRING:
+      case ProcessingType.RECURRING: {
         if (!schedule.cronExpression) return;
 
-        // Use cron parser to calculate next execution
-        const parser = require('cron-parser');
-        const interval = parser.parseExpression(schedule.cronExpression, {
-          currentDate: new Date(),
-          tz: schedule.timezone || 'UTC',
-        });
-
-        nextExecution = interval.next().toDate();
+        // Use CronJob to calculate next execution honoring timezone
+        const job = new CronJob(
+          schedule.cronExpression,
+          () => null,
+          undefined,
+          false,
+          schedule.timezone || 'UTC'
+        );
+        nextExecution = job.nextDate().toJSDate();
         break;
+      }
 
-      case ProcessingType.SPECIFIC_DATES:
+      case ProcessingType.SPECIFIC_DATES: {
         const specificDates = schedule.specificDates as string[];
         const now = new Date();
 
@@ -444,6 +449,7 @@ export class ScheduleOrchestratorService {
 
         nextExecution = futureDates.length > 0 ? futureDates[0] : null;
         break;
+      }
     }
 
     if (nextExecution) {
