@@ -12,6 +12,7 @@ import { EmailScheduleProcessorService } from './email-schedule-processor.servic
 import { LLMModule } from '../llm/llm.module';
 import { PrismaModule } from '../../common/prisma/prisma.module';
 import { ProcessTemplateModule } from '../process-template/process-template.module';
+import { EmbeddingModule } from '../embedding/embedding.module';
 import { AuthService } from '../auth/auth.service';
 import { ImapService } from '../imap/imap.service';
 import { EncryptionService } from '../encrypt/encryption.service';
@@ -19,7 +20,7 @@ import { ExecutionTrackingService } from '../processing-schedule/execution-track
 import { ProcessingScheduleService } from '../processing-schedule/processing-schedule.service';
 
 @Module({
-  imports: [ConfigModule, PrismaModule, LLMModule, ProcessTemplateModule],
+  imports: [ConfigModule, PrismaModule, LLMModule, ProcessTemplateModule, EmbeddingModule],
   controllers: [EmailController],
   providers: [
     EmailService,

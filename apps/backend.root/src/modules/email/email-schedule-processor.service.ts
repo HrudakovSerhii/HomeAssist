@@ -155,9 +155,9 @@ export class EmailScheduleProcessorService {
         const llmStartTime = Date.now();
         this.logger.log(`🤖 Starting LLM processing for email: "${email.subject}"`);
         
-        // Process with LLM (enhanced with schedule preferences)
+        // Process with LLM (enhanced with schedule preferences and embedding classification)
         const llmResult =
-          await this.processorService.processEmailWithScheduleFocus(
+          await this.processorService.processEmailWithEmbeddingClassification(
             schedule.emailAccountId,
             preprocessedEmail,
             { llmFocus: schedule.llmFocus as any }

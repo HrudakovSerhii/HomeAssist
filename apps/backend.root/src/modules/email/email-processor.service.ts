@@ -3,6 +3,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { LLMService } from '../llm/llm.service';
 import { TemplateService } from '../process-template/template.service';
 import { EntityValueParserService } from '../process-template/entity-value-parser.service';
+import { EmbeddingService } from '../embedding/embedding.service';
 import { PrismaService } from '../../common/prisma/prisma.service';
 
 import { EmailMessage } from '../../types/email.types';
@@ -48,7 +49,8 @@ export class EmailProcessorService {
     private readonly prisma: PrismaService,
     private readonly llmService: LLMService,
     private readonly templateService: TemplateService,
-    private readonly entityValueParser: EntityValueParserService
+    private readonly entityValueParser: EntityValueParserService,
+    private readonly embeddingService: EmbeddingService
   ) {}
 
   /**
@@ -177,6 +179,50 @@ export class EmailProcessorService {
       || TemplateNames.GENERAL_EMAIL_ANALYSIS;
     
     return this.processEmail(accountId, email, templateName);
+  }
+
+  /**
+   * Processes a single email using embedding-based category classification.
+   * Uses the EmbeddingService to classify the email subject and select the appropriate template.
+   */
+  async processEmailWithEmbeddingClassification(
+    accountId: EmailAccount['id'],
+    email: EmailMessage,
+    schedule: { llmFocus?: string }
+  ): Promise<EmailProcessingResult> {
+    try {
+      // Check if embedding service is ready
+      if (!this.embeddingService.isReady()) {
+        this.logger.warn('⚠️ EmbeddingService not ready, falling back to schedule focus');
+        return this.processEmailWithScheduleFocus(accountId, email, schedule);
+      }
+
+      // Classify email subject using embeddings
+      const classification = await this.embeddingService.classifyEmailSubject(email.subject);
+      
+      // Get template based on classified category
+      let templateName = this.embeddingService.getCategoryTemplate(classification.category);
+      
+      // If llmFocus is specified and confidence is low, prefer llmFocus template
+      if (schedule.llmFocus && classification.confidence < 0.7) {
+        const focusTemplate = LLM_FOCUS_TEMPLATE_MAP[schedule.llmFocus as keyof typeof LLM_FOCUS_TEMPLATE_MAP];
+        if (focusTemplate) {
+          templateName = focusTemplate;
+          this.logger.log(
+            `🔄 Low confidence (${(classification.confidence * 100).toFixed(1)}%), using llmFocus template: ${templateName}`
+          );
+        }
+      }
+
+      this.logger.log(
+        `🎯 Using template "${templateName}" for category "${classification.category}" (confidence: ${(classification.confidence * 100).toFixed(1)}%)`
+      );
+
+      return this.processEmail(accountId, email, templateName);
+    } catch (error) {
+      this.logger.error('❌ Embedding classification failed, falling back to schedule focus:', error);
+      return this.processEmailWithScheduleFocus(accountId, email, schedule);
+    }
   }
 
   /**
