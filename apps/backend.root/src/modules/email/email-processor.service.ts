@@ -2,7 +2,9 @@ import { Injectable, Logger } from '@nestjs/common';
 
 import { LLMService } from '../llm/llm.service';
 import { TemplateService } from '../process-template/template.service';
+import { OptimizedTemplateService } from '../process-template/optimized-template.service';
 import { EntityValueParserService } from '../process-template/entity-value-parser.service';
+import { EmbeddingService } from '../embedding/embedding.service';
 import { PrismaService } from '../../common/prisma/prisma.service';
 
 import { EmailMessage } from '../../types/email.types';
@@ -16,7 +18,10 @@ import {
   EnhancedEmailAnalysis,
   ScoringBreakdown,
 } from '../../types/email-processing.types';
-import { TemplateNames, LLM_FOCUS_TEMPLATE_MAP } from '../../types/template.types';
+import {
+  TemplateNames,
+  LLM_FOCUS_TEMPLATE_MAP,
+} from '../../types/template.types';
 
 import {
   ProcessingStatus,
@@ -48,7 +53,9 @@ export class EmailProcessorService {
     private readonly prisma: PrismaService,
     private readonly llmService: LLMService,
     private readonly templateService: TemplateService,
-    private readonly entityValueParser: EntityValueParserService
+    private readonly optimizedTemplateService: OptimizedTemplateService,
+    private readonly entityValueParser: EntityValueParserService,
+    private readonly embeddingService: EmbeddingService
   ) {}
 
   /**
@@ -65,13 +72,18 @@ export class EmailProcessorService {
 
     try {
       // Check if email has already been successfully processed (skip if COMPLETED)
-      const existingProcessedEmail = await this.prisma.processedEmails.findUnique({
-        where: { messageId: email.messageId },
-        select: { processingStatus: true, id: true },
-      });
+      const existingProcessedEmail =
+        await this.prisma.processedEmails.findUnique({
+          where: { messageId: email.messageId },
+          select: { processingStatus: true, id: true },
+        });
 
-      if (existingProcessedEmail?.processingStatus === ProcessingStatus.COMPLETED) {
-        this.logger.log(`Email already successfully processed, skipping: "${email.subject}"`);
+      if (
+        existingProcessedEmail?.processingStatus === ProcessingStatus.COMPLETED
+      ) {
+        this.logger.log(
+          `Email already successfully processed, skipping: "${email.subject}"`
+        );
         const fullRecord = await this.prisma.processedEmails.findUnique({
           where: { id: existingProcessedEmail.id },
           include: { entities: true, actionItems: true },
@@ -86,8 +98,12 @@ export class EmailProcessorService {
       }
 
       // If FAILED status, log that we're re-processing
-      if (existingProcessedEmail?.processingStatus === ProcessingStatus.FAILED) {
-        this.logger.log(`Re-processing previously failed email: "${email.subject}"`);
+      if (
+        existingProcessedEmail?.processingStatus === ProcessingStatus.FAILED
+      ) {
+        this.logger.log(
+          `Re-processing previously failed email: "${email.subject}"`
+        );
       }
 
       // Select template based on email content or use specified template
@@ -111,6 +127,8 @@ export class EmailProcessorService {
         undefined,
         true
       );
+
+      this.logger.log(`Response from LLM: "${llmResponse}"`);
 
       // Parse and validate LLM response
       const extractedData = await this.parseLLMResponse(
@@ -173,10 +191,161 @@ export class EmailProcessorService {
     email: EmailMessage,
     schedule: { llmFocus?: string }
   ): Promise<EmailProcessingResult> {
-    const templateName = LLM_FOCUS_TEMPLATE_MAP[schedule.llmFocus as keyof typeof LLM_FOCUS_TEMPLATE_MAP] 
-      || TemplateNames.GENERAL_EMAIL_ANALYSIS;
-    
+    const templateName =
+      LLM_FOCUS_TEMPLATE_MAP[
+        schedule.llmFocus as keyof typeof LLM_FOCUS_TEMPLATE_MAP
+      ] || TemplateNames.GENERAL_EMAIL_ANALYSIS;
+
     return this.processEmail(accountId, email, templateName);
+  }
+
+  /**
+   * Processes a single email using embedding-based category classification with optimized templates.
+   * Uses the EmbeddingService to classify the email subject and OptimizedTemplateService for prompts.
+   */
+  async processEmailWithEmbeddingClassification(
+    accountId: EmailAccount['id'],
+    email: EmailMessage,
+    schedule: { llmFocus?: string }
+  ): Promise<EmailProcessingResult> {
+    const startTime = Date.now();
+    let processedEmail: ProcessedEmailWithRelations | null = null;
+
+    try {
+      // Check if email has already been successfully processed (skip if COMPLETED)
+      const existingProcessedEmail = await this.prisma.processedEmails.findUnique({
+        where: { messageId: email.messageId },
+        select: { processingStatus: true, id: true },
+      });
+
+      if (existingProcessedEmail?.processingStatus === ProcessingStatus.COMPLETED) {
+        this.logger.log(`Email already successfully processed, skipping: "${email.subject}"`);
+        const fullRecord = await this.prisma.processedEmails.findUnique({
+          where: { id: existingProcessedEmail.id },
+          include: { entities: true, actionItems: true },
+        });
+        return {
+          messageId: email.messageId,
+          subject: email.subject,
+          success: true,
+          processedEmail: fullRecord as ProcessedEmailWithRelations,
+          processingTimeMs: Date.now() - startTime,
+        };
+      }
+
+      // Check if embedding service is ready
+      if (!this.embeddingService.isReady()) {
+        this.logger.warn(
+          '⚠️ EmbeddingService not ready, falling back to schedule focus'
+        );
+        return this.processEmailWithScheduleFocus(accountId, email, schedule);
+      }
+
+      // Classify email subject using embeddings
+      const classification = await this.embeddingService.classifyEmailSubject(
+        email.subject
+      );
+
+      // Generate optimized prompt using the classified category
+      let optimizedPrompt = this.optimizedTemplateService.generateOptimizedPrompt(
+        email,
+        classification.category,
+        250 // max content tokens
+      );
+
+      // If llmFocus is specified and confidence is low, use fallback prompt
+      if (schedule.llmFocus && classification.confidence < 0.7) {
+        this.logger.log(
+          `🔄 Low confidence (${(classification.confidence * 100).toFixed(1)}%), using fallback prompt`
+        );
+        optimizedPrompt = this.optimizedTemplateService.generateFallbackPrompt(email);
+      }
+
+      this.logger.log(
+        `🎯 Using optimized template for category "${classification.category}" (confidence: ${(classification.confidence * 100).toFixed(1)}%, tokens: ${optimizedPrompt.estimatedTokens})`
+      );
+
+      this.logger.log(`📝 Prompt being sent to LLM:\n${optimizedPrompt.prompt}`);
+
+      // Get optimized LLM settings
+      const llmSettings = this.optimizedTemplateService.getOptimizedLLMSettings();
+
+      this.logger.log(`⚙️ LLM Settings: ${JSON.stringify(llmSettings)}`);
+
+      // Call LLM service with optimized settings
+      const llmResponse = await this.llmService.executeChat(
+        optimizedPrompt.prompt,
+        config().llm.defaultModel,
+        'local',
+        {
+          temperature: llmSettings.temperature,
+          max_tokens: llmSettings.maxTokens,
+          stop: llmSettings.stopSequences,
+          repeat_penalty: llmSettings.repeatPenalty
+        },
+        undefined,
+        true
+      );
+
+      this.logger.log(`Response from LLM: "${JSON.stringify(llmResponse)}"`);
+
+      // Extract the actual content from Ollama response
+      const responseContent = llmResponse.message?.content || llmResponse.response;
+      
+      if (!responseContent) {
+        throw new Error('No content found in LLM response');
+      }
+
+      this.logger.log(`LLM Content: "${responseContent}"`);
+
+      // Parse and validate LLM response
+      const extractedData = await this.parseLLMResponse(responseContent);
+
+      // Save processed email data with COMPLETED status
+      processedEmail = await this.createProcessedEmail(
+        accountId,
+        email,
+        ProcessingStatus.COMPLETED,
+        extractedData
+      );
+
+      this.logger.log(`Successfully processed email with optimized template: "${email.subject}"`);
+
+      return {
+        messageId: email.messageId,
+        subject: email.subject,
+        success: true,
+        processedEmail,
+        processingTimeMs: Date.now() - startTime,
+      };
+    } catch (error) {
+      this.logger.error('❌ Optimized embedding processing failed:', error);
+      
+      try {
+        // Still create a ProcessedEmail record with FAILED status
+        processedEmail = await this.createProcessedEmail(
+          accountId,
+          email,
+          ProcessingStatus.FAILED,
+          null,
+          error.message
+        );
+      } catch (saveError) {
+        this.logger.error(
+          'Failed to save failed email processing record:',
+          saveError
+        );
+      }
+
+      return {
+        messageId: email.messageId,
+        subject: email.subject,
+        success: false,
+        error: error.message,
+        processedEmail,
+        processingTimeMs: Date.now() - startTime,
+      };
+    }
   }
 
   /**
@@ -205,7 +374,12 @@ export class EmailProcessorService {
       processingStatus: status,
     };
 
-    let categoryData, priorityData, sentimentData, summaryData, tagsData, confidenceData;
+    let categoryData,
+      priorityData,
+      sentimentData,
+      summaryData,
+      tagsData,
+      confidenceData;
 
     if (extractedData) {
       // If we have extracted data, populate the fields
@@ -263,18 +437,21 @@ export class EmailProcessorService {
     });
 
     // Handle nested relations separately for upsert scenario
-    if (extractedData && (extractedData.entities || extractedData.actionItems)) {
+    if (
+      extractedData &&
+      (extractedData.entities || extractedData.actionItems)
+    ) {
       // For re-processing, we need to clean up old relations and create new ones
       await this.updateNestedRelations(processedEmail.id, extractedData);
-      
+
       // Fetch the updated record with all relations
-      return await this.prisma.processedEmails.findUnique({
+      return (await this.prisma.processedEmails.findUnique({
         where: { id: processedEmail.id },
         include: {
           entities: true,
           actionItems: true,
         },
-      }) as ProcessedEmailWithRelations;
+      })) as ProcessedEmailWithRelations;
     }
 
     return processedEmail as ProcessedEmailWithRelations;
@@ -535,7 +712,9 @@ export class EmailProcessorService {
     failedEmails: EmailMessage[],
     templateName?: string
   ): Promise<EmailBatchProcessingResult> {
-    this.logger.warn('retryFailedEmails is deprecated. Use processEmailBatch instead.');
+    this.logger.warn(
+      'retryFailedEmails is deprecated. Use processEmailBatch instead.'
+    );
     return this.processEmailBatch(accountId, failedEmails, templateName);
   }
 

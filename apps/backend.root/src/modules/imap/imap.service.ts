@@ -116,27 +116,32 @@ export class ImapService {
     if (this.connections.has(accountId)) {
       const connection = this.connections.get(accountId)!;
 
-      // Better connection validation
+      // Quick connection validation with timeout
       try {
         if (connection.usable && connection.authenticated) {
-          // Test the connection with a quick operation
-          await connection.status('INBOX', { messages: true });
+          // Use a quick validation with timeout instead of status check
+          const validationPromise = Promise.race([
+            connection.noop(), // Simple NOOP command to test connection
+            new Promise((_, reject) => 
+              setTimeout(() => reject(new Error('Connection validation timeout')), 3000)
+            )
+          ]);
+          
+          await validationPromise;
+          this.logger.log(`Reusing cached connection for account ${accountId}`);
           return connection;
         }
       } catch (error) {
-        this.logger.warn(`Cached connection for ${accountId} is stale:`, error);
+        this.logger.warn(`Cached connection for ${accountId} is stale, creating new one:`, error.message);
       }
 
-      // Remove stale connection
+      // Force close stale connection
       this.connections.delete(accountId);
-      try {
-        await connection.logout();
-      } catch (error) {
-        // Ignore logout errors for stale connections
-      }
+      this.forceCloseConnection(connection, accountId);
     }
 
     // Create new connection
+    this.logger.log(`Creating new IMAP connection for account ${accountId}`);
     const connection = await this.createConnection(accountId);
 
     // Cache connection
@@ -144,6 +149,12 @@ export class ImapService {
 
     // Clean up connection when it closes
     connection.on('close', () => {
+      this.logger.log(`Connection closed for account ${accountId}`);
+      this.connections.delete(accountId);
+    });
+
+    connection.on('error', (error) => {
+      this.logger.error(`Connection error for account ${accountId}:`, error);
       this.connections.delete(accountId);
     });
 
@@ -255,18 +266,24 @@ export class ImapService {
     accountId: string,
     lastHealthyTime?: Date
   ): Promise<void> {
-    // If last healthy check was less than 5 minutes ago, skip
+    // If last healthy check was less than 2 minutes ago, skip
     if (
       lastHealthyTime &&
-      new Date().getTime() - lastHealthyTime.getTime() < 5 * 60 * 1000
+      new Date().getTime() - lastHealthyTime.getTime() < 2 * 60 * 1000
     ) {
+      this.logger.log(`Skipping health check for ${accountId} - recently validated`);
       return;
     }
 
-    // Test connection
-    const connectionTest = await this.testConnection(accountId);
-    if (!connectionTest.success) {
-      throw new Error(`IMAP connection unhealthy: ${connectionTest.message}`);
+    this.logger.log(`Performing health check for account ${accountId}`);
+    
+    // Use the existing connection validation instead of creating a new test
+    try {
+      await this.getConnection(accountId);
+      this.logger.log(`Health check passed for account ${accountId}`);
+    } catch (error) {
+      this.logger.error(`Health check failed for account ${accountId}:`, error);
+      throw new Error(`IMAP connection unhealthy: ${error.message}`);
     }
   }
 
@@ -442,6 +459,26 @@ export class ImapService {
   }
 
   /**
+   * Force close a connection without waiting for graceful logout
+   */
+  private forceCloseConnection(connection: ImapFlow, accountId: string): void {
+    try {
+      // Don't wait for logout, just close immediately
+      setImmediate(() => {
+        try {
+          connection.logout();
+        } catch (error) {
+          // Ignore logout errors for force close
+          this.logger.warn(`Force close logout error for ${accountId}:`, error.message);
+        }
+      });
+    } catch (error) {
+      // Ignore all errors during force close
+      this.logger.warn(`Force close error for ${accountId}:`, error.message);
+    }
+  }
+
+  /**
    * Close connection for account
    */
   async closeConnection(accountId: string): Promise<void> {
@@ -449,6 +486,18 @@ export class ImapService {
     if (connection) {
       await connection.logout();
       this.connections.delete(accountId);
+    }
+  }
+
+  /**
+   * Clear stale connections for a specific account
+   */
+  async clearStaleConnection(accountId: string): Promise<void> {
+    const connection = this.connections.get(accountId);
+    if (connection) {
+      this.logger.log(`Clearing potentially stale connection for account ${accountId}`);
+      this.connections.delete(accountId);
+      this.forceCloseConnection(connection, accountId);
     }
   }
 
