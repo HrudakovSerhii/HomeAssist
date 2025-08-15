@@ -94,10 +94,11 @@ export class ImapService {
 
     const client = new ImapFlow({
       ...config,
-      // Optimized timeouts for better reliability
-      connectionTimeout: 20000, // 20 seconds to establish connection (reduced)
-      greetingTimeout: 8000, // 8 seconds for server greeting (reduced)
-      socketTimeout: 60000, // 1 minute of inactivity before timeout (reduced)
+      // Optimized timeouts for batch processing
+      connectionTimeout: 30000, // 30 seconds to establish connection
+      greetingTimeout: 16000, // 16 seconds for server greeting (default)
+      socketTimeout: 600000, // 10 minutes for batch processing (increased from 1 minute)
+      maxIdleTime: 300000, // Break and restart IDLE every 5 minutes to keep connection alive
     });
 
     // Connect and authenticate
@@ -191,7 +192,7 @@ export class ImapService {
   async testConnectionWithCredentials(
     email: string,
     appPassword: string,
-    accountType: string = 'GMAIL'
+    accountType = 'GMAIL'
   ): Promise<{ success: boolean; message: string; stats?: any }> {
     try {
       const providerConfig = this.getProviderConfig(accountType);
@@ -473,13 +474,85 @@ export class ImapService {
   }
 
   /**
+   * Create a dedicated connection for schedule processing with extended timeouts
+   * This connection should be closed after the schedule is complete
+   */
+  async createScheduleConnection(accountId: string): Promise<ImapFlow> {
+    const account = await this.prisma.emailAccount.findUnique({
+      where: { id: accountId },
+    });
+
+    if (!account) {
+      throw new HttpException('Email account not found', HttpStatus.NOT_FOUND);
+    }
+
+    if (!account.isActive) {
+      throw new HttpException(
+        'Email account is disabled',
+        HttpStatus.FORBIDDEN
+      );
+    }
+
+    // Decrypt app password
+    const decryptedPassword = await this.encryptionService.decryptPassword(
+      account.appPassword
+    );
+    const providerConfig = this.getProviderConfig(account.accountType);
+
+    const config: EmailConnectionConfig = {
+      host: account.imapHost || providerConfig.host || 'imap.gmail.com',
+      port: account.imapPort || providerConfig.port || 993,
+      secure: account.useSSL ?? providerConfig.secure ?? true,
+      auth: {
+        user: account.email,
+        pass: decryptedPassword,
+      },
+    };
+
+    this.logger.log(
+      `Creating dedicated schedule connection for: ${config.host}:${config.port} (${account.email})`
+    );
+
+    const client = new ImapFlow({
+      ...config,
+      // Extended timeouts for long-running schedule processing
+      connectionTimeout: 30000, // 30 seconds to establish connection
+      greetingTimeout: 16000, // 16 seconds for server greeting
+      socketTimeout: 1800000, // 30 minutes for long batch processing
+      maxIdleTime: 600000, // Break and restart IDLE every 10 minutes
+      disableAutoIdle: true, // Disable auto-idle for batch processing
+    });
+
+    // Connect and authenticate
+    await client.connect();
+
+    this.logger.log(`Schedule connection established for ${account.email}`);
+
+    return client;
+  }
+
+  /**
+   * Close a dedicated schedule connection
+   */
+  async closeScheduleConnection(client: ImapFlow, accountId: string): Promise<void> {
+    try {
+      if (client && client.usable) {
+        await client.logout();
+        this.logger.log(`Schedule connection closed for account ${accountId}`);
+      }
+    } catch (error) {
+      this.logger.warn(`Error closing schedule connection for account ${accountId}:`, error);
+    }
+  }
+
+  /**
    * Fetch emails within a date range
    */
   async fetchEmailsWithDateFilter(
     accountId: string,
     since: Date,
     before?: Date,
-    limit: number = 1000
+    limit = 1000
   ): Promise<EmailMessage[]> {
     const startTime = Date.now();
     this.logger.log(

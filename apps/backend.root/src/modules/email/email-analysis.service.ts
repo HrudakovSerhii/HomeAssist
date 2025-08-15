@@ -5,6 +5,7 @@ import { LLMService } from '../llm/llm.service';
 import { TemplateService } from '../process-template/template.service';
 import { Email } from '../../types/email.types';
 import { EmailProcessingResult } from '../../types/email-processing.types';
+import { TemplateNames, LLM_FOCUS_TEMPLATE_MAP } from '../../types/template.types';
 
 @Injectable()
 export class EmailAnalysisService {
@@ -75,12 +76,7 @@ export class EmailAnalysisService {
    * Select LLM template based on focus preference
    */
   selectTemplateByFocus(focus: string): string {
-    const templates = {
-      sentiment: 'sentiment-analysis',
-      urgency: 'urgency-detector',
-      general: 'email-analysis',
-    };
-
-    return templates[focus] || templates['general'];
+    return LLM_FOCUS_TEMPLATE_MAP[focus as keyof typeof LLM_FOCUS_TEMPLATE_MAP] 
+      || TemplateNames.GENERAL_EMAIL_ANALYSIS;
   }
 } 

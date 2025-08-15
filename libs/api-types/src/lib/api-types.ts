@@ -59,6 +59,19 @@ export type EmailIngestionProgress =
   components['schemas']['EmailIngestionProgress'];
 export type EmailIngestionStage = components['schemas']['EmailIngestionStage'];
 
+// Schedule-related types
+export type ProcessingType = components['schemas']['ProcessingType'];
+export type LlmFocus = components['schemas']['LlmFocus'];
+export type CreateProcessingScheduleDto = components['schemas']['CreateProcessingScheduleDto'];
+export type UpdateProcessingScheduleDto = components['schemas']['UpdateProcessingScheduleDto'];
+export type ProcessingSchedule = components['schemas']['ProcessingSchedule'];
+export type ProcessingScheduleWithAccount = components['schemas']['ProcessingScheduleWithAccount'];
+export type ValidationResult = components['schemas']['ValidationResult'];
+export type ScheduleExecutionStatus = components['schemas']['ScheduleExecutionStatus'];
+export type CronJobCalendarEntry = components['schemas']['CronJobCalendarEntry'];
+export type ProcessingAnalytics = components['schemas']['ProcessingAnalytics'];
+export type BulkUpdateResponse = components['schemas']['BulkUpdateResponse'];
+
 // API utility types
 export type ApiPaths = keyof paths;
 
@@ -95,6 +108,16 @@ export type LLMExecuteRequest =
   paths['/llm/execute']['post']['requestBody']['content']['application/json'];
 export type LLMExecuteResponse =
   paths['/llm/execute']['post']['responses']['200']['content']['application/json'];
+
+// Schedule endpoints utility types
+export type GetSchedulesResponse = paths['/processing-schedules']['get']['responses']['200']['content']['application/json'];
+export type CreateScheduleRequest = paths['/processing-schedules']['post']['requestBody']['content']['application/json'];
+export type CreateScheduleResponse = paths['/processing-schedules']['post']['responses']['201']['content']['application/json'];
+export type UpdateScheduleRequest = paths['/processing-schedules/{id}']['put']['requestBody']['content']['application/json'];
+export type UpdateScheduleResponse = paths['/processing-schedules/{id}']['put']['responses']['200']['content']['application/json'];
+export type ValidateScheduleRequest = paths['/processing-schedules/validate']['post']['requestBody']['content']['application/json'];
+export type ValidateScheduleResponse = paths['/processing-schedules/validate']['post']['responses']['200']['content']['application/json'];
+export type DeleteScheduleResponse = paths['/processing-schedules/{id}']['delete']['responses']['200']['content']['application/json'];
 
 // Library metadata
 export const API_TYPES_VERSION = '1.0.0';

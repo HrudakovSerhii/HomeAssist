@@ -1,7 +1,11 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { ImapService } from '../imap/imap.service';
-import { ProcessingStatus, ProcessingSchedule, ScheduleExecution } from '@prisma/client';
+import {
+  ProcessingStatus,
+  ProcessingSchedule,
+  ScheduleExecution,
+} from '@prisma/client';
 import { EmailMessage } from '../../types/email.types';
 import {
   EmailBatchProcessingResult,
@@ -48,12 +52,16 @@ export class EmailScheduleProcessorService {
     const batches = this.chunkArray(emails, batchSize);
 
     this.logger.log(
-      `Processing ${emails.length} emails in ${batches.length} batches for schedule: ${schedule.name}`
+      `🚀 Starting email processing: ${emails.length} emails in ${batches.length} batches (batchSize: ${batchSize}) for schedule: ${schedule.name}`
     );
 
     for (let i = 0; i < batches.length; i++) {
       const batch = batches[i];
       const batchStartTime = new Date();
+
+      this.logger.log(
+        `📦 Processing batch ${i + 1}/${batches.length} with ${batch.length} emails`
+      );
 
       try {
         // Ensure healthy IMAP connection before batch
@@ -67,6 +75,14 @@ export class EmailScheduleProcessorService {
           schedule,
           batch,
           execution.id
+        );
+
+        const batchDuration = Date.now() - batchStartTime.getTime();
+        const successful = batchResults.filter(r => r.success).length;
+        const failed = batchResults.filter(r => !r.success).length;
+        
+        this.logger.log(
+          `✅ Batch ${i + 1}/${batches.length} completed in ${batchDuration}ms: ${successful} successful, ${failed} failed`
         );
 
         // Update results
@@ -123,49 +139,46 @@ export class EmailScheduleProcessorService {
   ): Promise<EmailProcessingResult[]> {
     const results: EmailProcessingResult[] = [];
 
-    for (const email of emails) {
+    for (let emailIndex = 0; emailIndex < emails.length; emailIndex++) {
+      const email = emails[emailIndex];
+      const emailStartTime = Date.now();
+      
+      this.logger.log(
+        `📧 Processing email ${emailIndex + 1}/${emails.length}: "${email.subject}" from ${email.from}`
+      );
+
       try {
-        // Check if already processed
-        const existing = await this.prisma.processedEmails.findUnique({
-          where: { messageId: email.messageId },
-        });
-
-        if (existing) {
-          this.logger.debug(
-            `Email already processed, skipping: ${email.messageId}`
-          );
-          results.push({
-            success: true,
-            originalEmail: email,
-            data: {
-              messageId: email.messageId,
-              subject: email.subject,
-              processingStatus: 'COMPLETED',
-            },
-          });
-          continue;
-        }
-
         // Apply user-defined priority configuration before LLM processing
-        const preprocessedEmail = this.priorityService.applyUserPriorityPreprocessing(
-          email,
-          schedule
-        );
+        const preprocessedEmail =
+          this.priorityService.applyUserPriorityPreprocessing(email, schedule);
 
+        const llmStartTime = Date.now();
+        this.logger.log(`🤖 Starting LLM processing for email: "${email.subject}"`);
+        
         // Process with LLM (enhanced with schedule preferences)
-        const llmResult = await this.processorService.processEmailWithScheduleFocus(
-          schedule.emailAccountId,
-          preprocessedEmail,
-          { llmFocus: schedule.llmFocus as any }
-        );
+        const llmResult =
+          await this.processorService.processEmailWithScheduleFocus(
+            schedule.emailAccountId,
+            preprocessedEmail,
+            { llmFocus: schedule.llmFocus as any }
+          );
+
+        const llmDuration = Date.now() - llmStartTime;
+        this.logger.log(`🤖 LLM processing completed in ${llmDuration}ms for email: "${email.subject}"`);
 
         // Apply post-processing priority adjustments
-        const finalResult = this.priorityService.applyUserPriorityPostprocessing(llmResult);
+        const finalResult =
+          this.priorityService.applyUserPriorityPostprocessing(llmResult);
 
         // Store with execution tracking
         const processedEmail = await this.executionService.storeProcessedEmail(
           executionId,
           finalResult
+        );
+
+        const totalDuration = Date.now() - emailStartTime;
+        this.logger.log(
+          `✅ Email ${emailIndex + 1}/${emails.length} processed successfully in ${totalDuration}ms (LLM: ${llmDuration}ms)`
         );
 
         results.push({
@@ -174,7 +187,11 @@ export class EmailScheduleProcessorService {
           data: processedEmail,
         });
       } catch (error) {
-        this.logger.error(`Failed to process email ${email.messageId}:`, error);
+        const totalDuration = Date.now() - emailStartTime;
+        this.logger.error(
+          `❌ Email ${emailIndex + 1}/${emails.length} failed after ${totalDuration}ms: "${email.subject}" - Error: ${error.message}`
+        );
+        
         results.push({
           success: false,
           error: error.message,
@@ -201,4 +218,4 @@ export class EmailScheduleProcessorService {
     }
     return chunks;
   }
-} 
+}

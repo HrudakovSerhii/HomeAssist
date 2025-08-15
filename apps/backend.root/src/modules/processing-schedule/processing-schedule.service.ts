@@ -557,10 +557,11 @@ export class ProcessingScheduleService {
   }
 
   /**
-   * Computes nextExecutionAt from processingType:
+   * Computes nextExecutionAt from processingType (schedule timing):
    * - DATE_RANGE: immediate (one-time)
    * - RECURRING: next occurrence by cron expression
    * - SPECIFIC_DATES: next future date
+   * Note: ProcessingType determines WHEN to run, not WHAT emails to process.
    */
   private async calculateNextExecutionTime(
     dto: CreateProcessingScheduleDto | UpdateProcessingScheduleDto

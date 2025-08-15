@@ -4,7 +4,7 @@ import { EmailCategory, LlmFocus } from '@prisma/client';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { TemplateValidatorService } from './template-validator.service';
 import { EmailMessage } from '../../types/email.types';
-import { TemplateValidationResult } from '../../types/template.types';
+import { TemplateValidationResult, TemplateNames } from '../../types/template.types';
 import { TemplateConfig } from '../../types/email-processing.types';
 import {
   ENHANCED_PRIORITY_TEMPLATE,
@@ -577,17 +577,17 @@ export class TemplateService {
   selectTemplateByFocus(focus: LlmFocus | string): TemplateConfig {
     const templates = {
       'general': {
-        name: 'enhanced-priority',
+        name: TemplateNames.ENHANCED_PRIORITY,
         template: ENHANCED_PRIORITY_TEMPLATE.template,
         description: 'Comprehensive priority analysis with scoring breakdown'
       },
       'sentiment': {
-        name: 'sentiment-focused',
+        name: TemplateNames.SENTIMENT_FOCUSED,
         template: SENTIMENT_FOCUSED_TEMPLATE.template,
         description: 'Sentiment-driven priority assessment'
       },
       'urgency': {
-        name: 'urgency-focused', 
+        name: TemplateNames.URGENCY_FOCUSED, 
         template: URGENCY_FOCUSED_TEMPLATE.template,
         description: 'Time-critical urgency detection'
       }

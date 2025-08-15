@@ -16,6 +16,7 @@ import {
   EnhancedEmailAnalysis,
   ScoringBreakdown,
 } from '../../types/email-processing.types';
+import { TemplateNames, LLM_FOCUS_TEMPLATE_MAP } from '../../types/template.types';
 
 import {
   ProcessingStatus,
@@ -31,7 +32,8 @@ import config from '../../config/configuration';
 @Injectable()
 /**
  * Canonical email analysis pipeline.
- * - Ensures idempotency by skipping already processed messageIds.
+ * - Skips emails with COMPLETED status, re-processes emails with FAILED status.
+ * - Uses upsert logic to handle both new emails and failed email re-processing.
  * - Selects a template, generates a prompt, invokes the LLM, parses the response,
  *   and persists a ProcessedEmail with ProcessingStatus.
  * - Provides batch processing helpers and enhanced parsing fallbacks.
@@ -62,29 +64,32 @@ export class EmailProcessorService {
     let processedEmail: ProcessedEmailWithRelations | null = null;
 
     try {
-      // Check if email has already been processed
-      const existingProcessedEmail =
-        await this.prisma.processedEmails.findUnique({
-          where: { messageId: email.messageId },
-          include: {
-            entities: true,
-            actionItems: true,
-          },
+      // Check if email has already been successfully processed (skip if COMPLETED)
+      const existingProcessedEmail = await this.prisma.processedEmails.findUnique({
+        where: { messageId: email.messageId },
+        select: { processingStatus: true, id: true },
+      });
+
+      if (existingProcessedEmail?.processingStatus === ProcessingStatus.COMPLETED) {
+        this.logger.log(`Email already successfully processed, skipping: "${email.subject}"`);
+        const fullRecord = await this.prisma.processedEmails.findUnique({
+          where: { id: existingProcessedEmail.id },
+          include: { entities: true, actionItems: true },
         });
-
-      if (existingProcessedEmail) {
-        this.logger.log(
-          `Email already processed, skipping: "${email.subject}" (messageId: ${email.messageId})`
-        );
-
         return {
           messageId: email.messageId,
           subject: email.subject,
           success: true,
-          processedEmail: existingProcessedEmail,
+          processedEmail: fullRecord as ProcessedEmailWithRelations,
           processingTimeMs: Date.now() - startTime,
         };
       }
+
+      // If FAILED status, log that we're re-processing
+      if (existingProcessedEmail?.processingStatus === ProcessingStatus.FAILED) {
+        this.logger.log(`Re-processing previously failed email: "${email.subject}"`);
+      }
+
       // Select template based on email content or use specified template
       const template = templateName
         ? await this.templateService.getTemplateByName(templateName)
@@ -168,19 +173,16 @@ export class EmailProcessorService {
     email: EmailMessage,
     schedule: { llmFocus?: string }
   ): Promise<EmailProcessingResult> {
-    const templateByFocus: Record<string, string> = {
-      sentiment: 'sentiment-analysis',
-      urgency: 'urgency-detector',
-      general: 'email-analysis',
-    };
-
-    const templateName = templateByFocus[schedule.llmFocus || 'general'] || 'email-analysis';
+    const templateName = LLM_FOCUS_TEMPLATE_MAP[schedule.llmFocus as keyof typeof LLM_FOCUS_TEMPLATE_MAP] 
+      || TemplateNames.GENERAL_EMAIL_ANALYSIS;
+    
     return this.processEmail(accountId, email, templateName);
   }
 
   /**
-   * Creates and persists a ProcessedEmail record with the provided status and
-   * optional extracted data and error message.
+   * Creates or updates a ProcessedEmail record with the provided status and
+   * optional extracted data and error message. Uses upsert to handle re-processing
+   * of failed emails.
    */
   private async createProcessedEmail(
     accountId: EmailAccount['id'],
@@ -189,7 +191,7 @@ export class EmailProcessorService {
     extractedData?: ParsedLLMResponse | null,
     errorMessage?: string
   ): Promise<ProcessedEmailWithRelations> {
-    const data: any = {
+    const baseData = {
       messageId: email.messageId,
       subject: email.subject,
       fromAddress: email.from,
@@ -203,62 +205,133 @@ export class EmailProcessorService {
       processingStatus: status,
     };
 
+    let categoryData, priorityData, sentimentData, summaryData, tagsData, confidenceData;
+
     if (extractedData) {
       // If we have extracted data, populate the fields
-      data.category = extractedData.category;
-      data.priority = extractedData.priority;
-      data.sentiment = extractedData.sentiment;
-      data.summary = extractedData.summary;
-      data.tags = extractedData.tags || [];
-      data.confidence = extractedData.confidence || 0.8;
-
-      // Create related entities
-      data.entities = {
-        create:
-          extractedData.entities?.map((entity) => {
-            const serializedValue = this.entityValueParser.serializeForDatabase(
-              entity.type,
-              entity.value
-            );
-
-            return {
-              entityType: entity.type,
-              entityValue: serializedValue,
-              confidence: entity.confidence || 0.8,
-              context: entity.context,
-            };
-          }) || [],
-      };
-
-      // Create action items
-      data.actionItems = {
-        create:
-          extractedData.actionItems?.map((action) => ({
-            description: action.description,
-            actionType: action.actionType,
-            priority: action.priority,
-            dueDate: action.dueDate ? new Date(action.dueDate) : null,
-          })) || [],
-      };
+      categoryData = extractedData.category;
+      priorityData = extractedData.priority;
+      sentimentData = extractedData.sentiment;
+      summaryData = extractedData.summary;
+      tagsData = extractedData.tags || [];
+      confidenceData = extractedData.confidence || 0.8;
     } else {
       // Failed processing - use default values
-      data.category = EmailCategory.PERSONAL;
-      data.priority = Priority.MEDIUM;
-      data.sentiment = Sentiment.NEUTRAL;
-      data.summary = errorMessage || 'Processing failed';
-      data.tags = [];
-      data.confidence = 0.0;
-      data.entities = { create: [] };
-      data.actionItems = { create: [] };
+      categoryData = EmailCategory.PERSONAL;
+      priorityData = Priority.MEDIUM;
+      sentimentData = Sentiment.NEUTRAL;
+      summaryData = errorMessage || 'Processing failed';
+      tagsData = [];
+      confidenceData = 0.0;
     }
 
-    return await this.prisma.processedEmails.create({
-      data,
+    // Use upsert to handle both create and update scenarios
+    const processedEmail = await this.prisma.processedEmails.upsert({
+      where: { messageId: email.messageId },
+      create: {
+        ...baseData,
+        category: categoryData,
+        priority: priorityData,
+        sentiment: sentimentData,
+        summary: summaryData,
+        tags: tagsData,
+        confidence: confidenceData,
+      },
+      update: {
+        // Update all fields on re-processing
+        subject: email.subject,
+        fromAddress: email.from,
+        toAddresses: email.to,
+        ccAddresses: email.cc || [],
+        bccAddresses: email.bcc || [],
+        receivedAt: email.date,
+        bodyText: email.bodyText,
+        bodyHtml: email.bodyHtml,
+        processingStatus: status,
+        category: categoryData,
+        priority: priorityData,
+        sentiment: sentimentData,
+        summary: summaryData,
+        tags: tagsData,
+        confidence: confidenceData,
+        updatedAt: new Date(),
+      },
       include: {
         entities: true,
         actionItems: true,
       },
     });
+
+    // Handle nested relations separately for upsert scenario
+    if (extractedData && (extractedData.entities || extractedData.actionItems)) {
+      // For re-processing, we need to clean up old relations and create new ones
+      await this.updateNestedRelations(processedEmail.id, extractedData);
+      
+      // Fetch the updated record with all relations
+      return await this.prisma.processedEmails.findUnique({
+        where: { id: processedEmail.id },
+        include: {
+          entities: true,
+          actionItems: true,
+        },
+      }) as ProcessedEmailWithRelations;
+    }
+
+    return processedEmail as ProcessedEmailWithRelations;
+  }
+
+  /**
+   * Updates nested relations (entities and actionItems) for a processed email.
+   * Deletes existing relations and creates new ones to ensure data consistency.
+   */
+  private async updateNestedRelations(
+    processedEmailId: string,
+    extractedData: ParsedLLMResponse
+  ): Promise<void> {
+    // Delete existing relations
+    await this.prisma.entityExtraction.deleteMany({
+      where: { processedEmailId },
+    });
+    await this.prisma.actionItem.deleteMany({
+      where: { processedEmailId },
+    });
+
+    // Create new entities if they exist
+    if (extractedData.entities && extractedData.entities.length > 0) {
+      const entityData = extractedData.entities.map((entity) => {
+        const serializedValue = this.entityValueParser.serializeForDatabase(
+          entity.type,
+          entity.value
+        );
+
+        return {
+          processedEmailId,
+          entityType: entity.type,
+          entityValue: serializedValue,
+          confidence: entity.confidence || 0.8,
+          context: entity.context,
+        };
+      });
+
+      await this.prisma.entityExtraction.createMany({
+        data: entityData,
+      });
+    }
+
+    // Create new action items if they exist
+    if (extractedData.actionItems && extractedData.actionItems.length > 0) {
+      const actionItemData = extractedData.actionItems.map((action) => ({
+        processedEmailId,
+        description: action.description,
+        actionType: action.actionType,
+        priority: action.priority,
+        dueDate: action.dueDate ? new Date(action.dueDate) : null,
+      }));
+
+      await this.prisma.actionItem.createMany({
+        data: actionItemData,
+      });
+    }
   }
 
   /**
@@ -454,47 +527,16 @@ export class EmailProcessorService {
   }
 
   /**
-   * Retry failed email processing by re-processing from Gmail/IMAP
-   * Note: This now requires re-fetching emails from the email service
+   * @deprecated Retry logic has been removed. Use regular processEmail method instead.
+   * The idempotency check in processEmail will handle duplicate processing attempts.
    */
   async retryFailedEmails(
     accountId: EmailAccount['id'],
     failedEmails: EmailMessage[],
     templateName?: string
   ): Promise<EmailBatchProcessingResult> {
-    const results: EmailBatchProcessingResult = {
-      processed: 0,
-      failed: 0,
-      results: [],
-    };
-
-    for (const email of failedEmails) {
-      // First, delete the failed processed email record if it exists
-      try {
-        await this.prisma.processedEmails.delete({
-          where: { messageId: email.messageId },
-        });
-      } catch (error) {
-        // Record might not exist, continue
-      }
-
-      // Reprocess the email
-      const result = await this.processEmail(accountId, email, templateName);
-
-      results.results.push(result);
-
-      if (result.success) {
-        results.processed++;
-      } else {
-        results.failed++;
-      }
-    }
-
-    this.logger.log(
-      `Retry processing completed: ${results.processed} processed, ${results.failed} failed`
-    );
-
-    return results;
+    this.logger.warn('retryFailedEmails is deprecated. Use processEmailBatch instead.');
+    return this.processEmailBatch(accountId, failedEmails, templateName);
   }
 
   // ============================================================================
@@ -517,25 +559,31 @@ export class EmailProcessorService {
       }
 
       const parsedData = JSON.parse(jsonMatch[0]);
-      
+
       // Validate and normalize the response
       return {
         category: this.validateEnhancedEmailCategory(parsedData.category),
         priority: this.validateEnhancedPriority(parsedData.priority),
-        importance_score: this.validateImportanceScore(parsedData.importance_score),
-        priority_reasoning: parsedData.priority_reasoning || 'No reasoning provided',
-        scoring_breakdown: this.validateScoringBreakdown(parsedData.scoring_breakdown),
+        importance_score: this.validateImportanceScore(
+          parsedData.importance_score
+        ),
+        priority_reasoning:
+          parsedData.priority_reasoning || 'No reasoning provided',
+        scoring_breakdown: this.validateScoringBreakdown(
+          parsedData.scoring_breakdown
+        ),
         sentiment: this.validateEnhancedSentiment(parsedData.sentiment),
         summary: parsedData.summary || 'No summary provided',
         tags: Array.isArray(parsedData.tags) ? parsedData.tags : [],
         confidence: Math.max(0, Math.min(1, parsedData.confidence || 0.8)),
         entities: this.validateEnhancedEntities(parsedData.entities || []),
-        actionItems: this.validateEnhancedActionItems(parsedData.actionItems || [])
+        actionItems: this.validateEnhancedActionItems(
+          parsedData.actionItems || []
+        ),
       };
-      
     } catch (error) {
       this.logger.error('Failed to parse enhanced LLM response:', error);
-      
+
       // Return fallback analysis
       return this.createEnhancedFallbackAnalysis(response);
     }
@@ -549,7 +597,9 @@ export class EmailProcessorService {
     if (validCategories.includes(category)) {
       return category;
     }
-    this.logger.warn(`Invalid email category: ${category}, defaulting to PERSONAL`);
+    this.logger.warn(
+      `Invalid email category: ${category}, defaulting to PERSONAL`
+    );
     return EmailCategory.PERSONAL;
   }
 
@@ -603,10 +653,10 @@ export class EmailProcessorService {
         urgency_language: 0,
         user_overrides: 0,
         penalties: 0,
-        final_score: 50
+        final_score: 50,
       };
     }
-    
+
     return {
       base_score: Number(breakdown.base_score) || 50,
       time_sensitivity: Number(breakdown.time_sensitivity) || 0,
@@ -615,7 +665,7 @@ export class EmailProcessorService {
       urgency_language: Number(breakdown.urgency_language) || 0,
       user_overrides: Number(breakdown.user_overrides) || 0,
       penalties: Number(breakdown.penalties) || 0,
-      final_score: Number(breakdown.final_score) || 50
+      final_score: Number(breakdown.final_score) || 50,
     };
   }
 
@@ -628,17 +678,21 @@ export class EmailProcessorService {
     }
 
     return entities
-      .filter(entity => entity && typeof entity === 'object')
-      .map(entity => ({
+      .filter((entity) => entity && typeof entity === 'object')
+      .map((entity) => ({
         id: entity.id,
         entityType: entity.entityType, // Will be validated by existing entity processing
         entityValue: String(entity.entityValue || ''),
         confidence: Math.max(0, Math.min(1, Number(entity.confidence) || 0.5)),
-        startPosition: entity.startPosition ? Number(entity.startPosition) : undefined,
-        endPosition: entity.endPosition ? Number(entity.endPosition) : undefined,
+        startPosition: entity.startPosition
+          ? Number(entity.startPosition)
+          : undefined,
+        endPosition: entity.endPosition
+          ? Number(entity.endPosition)
+          : undefined,
         context: entity.context ? String(entity.context) : undefined,
       }))
-      .filter(entity => entity.entityValue); // Remove entities with empty values
+      .filter((entity) => entity.entityValue); // Remove entities with empty values
   }
 
   /**
@@ -650,24 +704,28 @@ export class EmailProcessorService {
     }
 
     return actionItems
-      .filter(item => item && typeof item === 'object')
-      .map(item => ({
+      .filter((item) => item && typeof item === 'object')
+      .map((item) => ({
         id: item.id,
         actionType: item.actionType, // Will be validated by existing action processing
         description: String(item.description || ''),
         priority: this.validateEnhancedPriority(item.priority),
         dueDate: item.dueDate ? String(item.dueDate) : undefined,
-        completed: Boolean(item.completed)
+        completed: Boolean(item.completed),
       }))
-      .filter(item => item.description); // Remove items with empty descriptions
+      .filter((item) => item.description); // Remove items with empty descriptions
   }
 
   /**
    * ENHANCED: Create fallback analysis when parsing fails
    */
-  private createEnhancedFallbackAnalysis(response: string): EnhancedEmailAnalysis {
-    this.logger.warn('Creating enhanced fallback analysis due to parsing failure');
-    
+  private createEnhancedFallbackAnalysis(
+    response: string
+  ): EnhancedEmailAnalysis {
+    this.logger.warn(
+      'Creating enhanced fallback analysis due to parsing failure'
+    );
+
     return {
       category: EmailCategory.PERSONAL,
       priority: Priority.MEDIUM,
@@ -681,47 +739,55 @@ export class EmailProcessorService {
         urgency_language: 0,
         user_overrides: 0,
         penalties: 0,
-        final_score: 50
+        final_score: 50,
       },
       sentiment: Sentiment.NEUTRAL,
       summary: response.substring(0, 200),
       tags: ['parsing-error'],
       confidence: 0.3,
       entities: [],
-      actionItems: []
+      actionItems: [],
     };
   }
 
   /**
    * ENHANCED: Extract structured data from free text response (fallback method)
    */
-  private extractStructuredDataFromText(response: string): Partial<EnhancedEmailAnalysis> {
+  private extractStructuredDataFromText(
+    response: string
+  ): Partial<EnhancedEmailAnalysis> {
     const extracted: Partial<EnhancedEmailAnalysis> = {};
-    
+
     // Try to extract category
-    const categoryMatch = response.match(/category[:\s]+(PERSONAL|WORK|MARKETING|NEWSLETTER|SUPPORT|NOTIFICATION|INVOICE|RECEIPT|APPOINTMENT)/i);
+    const categoryMatch = response.match(
+      /category[:\s]+(PERSONAL|WORK|MARKETING|NEWSLETTER|SUPPORT|NOTIFICATION|INVOICE|RECEIPT|APPOINTMENT)/i
+    );
     if (categoryMatch) {
       extracted.category = categoryMatch[1].toUpperCase() as EmailCategory;
     }
-    
+
     // Try to extract priority
-    const priorityMatch = response.match(/priority[:\s]+(LOW|MEDIUM|HIGH|URGENT)/i);
+    const priorityMatch = response.match(
+      /priority[:\s]+(LOW|MEDIUM|HIGH|URGENT)/i
+    );
     if (priorityMatch) {
       extracted.priority = priorityMatch[1].toUpperCase() as Priority;
     }
-    
+
     // Try to extract sentiment
-    const sentimentMatch = response.match(/sentiment[:\s]+(POSITIVE|NEGATIVE|NEUTRAL|MIXED)/i);
+    const sentimentMatch = response.match(
+      /sentiment[:\s]+(POSITIVE|NEGATIVE|NEUTRAL|MIXED)/i
+    );
     if (sentimentMatch) {
       extracted.sentiment = sentimentMatch[1].toUpperCase() as Sentiment;
     }
-    
+
     // Try to extract importance score
     const scoreMatch = response.match(/(?:importance_score|score)[:\s]+(\d+)/i);
     if (scoreMatch) {
       extracted.importance_score = parseInt(scoreMatch[1]);
     }
-    
+
     return extracted;
   }
 }

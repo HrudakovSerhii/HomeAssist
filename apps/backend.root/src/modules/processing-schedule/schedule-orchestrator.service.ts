@@ -3,6 +3,7 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { ImapService } from '../imap/imap.service';
 import { EmailProcessingService } from '../email/email-processing.service';
+import { LLMService } from '../llm/llm.service';
 import {
   ExecutionStatus,
   Prisma,
@@ -13,6 +14,7 @@ import {
 import { EmailBatchProcessingResult } from '../../types/email-processing.types';
 import { EmailMessage } from '../../types/email.types';
 import { CronJob } from 'cron';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 /**
@@ -32,7 +34,9 @@ export class ScheduleOrchestratorService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly emailProcessingService: EmailProcessingService,
-    private readonly imapService: ImapService
+    private readonly imapService: ImapService,
+    private readonly configService: ConfigService,
+    private readonly llmService: LLMService
   ) {}
 
   /**
@@ -195,11 +199,28 @@ export class ScheduleOrchestratorService {
     try {
       this.logger.log(`Starting execution for schedule: ${schedule.name}`);
 
-      // Determine date range based on schedule type
-      const dateRange = await this.calculateDateRangeForSchedule(schedule);
+      // Check LLM availability before processing
+      if (!(await this.checkLLMAvailability())) {
+        throw new Error('LLM service is not available');
+      }
+
+      // Determine per-execution limit
+      const envCap = this.configService.get<number>('processing.maxEmailsPerExecution');
+      const scheduleBatchSize = schedule.batchSize || 5; // Default to 5 if not set
+      const limit = Math.min(scheduleBatchSize, envCap || Number.MAX_SAFE_INTEGER);
+
+      this.logger.log(
+        `📊 Processing limits - Schedule batchSize: ${scheduleBatchSize}, Environment cap: ${envCap}, Final limit: ${limit}`
+      );
 
       // Fetch emails for processing
-      const emails = await this.fetchEmailsForSchedule(schedule, dateRange);
+      const dateRange = await this.calculateDateRangeForSchedule(schedule);
+      this.logger.log(
+        `📅 Date range: ${dateRange.since.toISOString()} to ${dateRange.before.toISOString()}`
+      );
+      
+      const emails = await this.fetchEmailsForSchedule(schedule, dateRange, limit);
+      this.logger.log(`📬 Fetched ${emails.length} emails for processing`);
 
       // Process emails in batches
       const results =
@@ -212,6 +233,12 @@ export class ScheduleOrchestratorService {
       // Update execution as completed
       await this.completeScheduleExecution(execution, results);
 
+      // Update account markers
+      await this.prisma.emailAccount.update({
+        where: { id: schedule.emailAccountId },
+        data: { lastProcessedAt: new Date() },
+      });
+
       // Update schedule's next execution time
       await this.updateScheduleNextExecution(schedule);
 
@@ -223,44 +250,47 @@ export class ScheduleOrchestratorService {
   }
 
   /**
-   * Returns the inclusive date window used to fetch emails for a schedule.
-   * - DATE_RANGE: uses configured from/to
-   * - RECURRING: since last successful execution (or schedule creation) until now
-   * - SPECIFIC_DATES: 24h window around the next configured date
+   * Determines what emails to process for a given schedule execution.
+   * Currently implements "last successfully processed email" strategy.
+   * Future expansions: specific sender, topic filtering, custom date ranges.
+   */
+  private async determineEmailSelectionStrategy(
+    schedule: ProcessingSchedule
+  ): Promise<{ since: Date; before: Date }> {
+    const now = new Date();
+    
+    // Strategy: Process from last COMPLETED processed email for this account
+    const lastProcessed = await this.prisma.processedEmails.findFirst({
+      where: {
+        emailAccountId: schedule.emailAccountId,
+        processingStatus: 'COMPLETED',
+      },
+      orderBy: { receivedAt: 'desc' },
+      select: { receivedAt: true },
+    });
+
+    if (lastProcessed?.receivedAt) {
+      this.logger.log(`Using last processed email strategy: since ${lastProcessed.receivedAt.toISOString()}`);
+      return { since: lastProcessed.receivedAt, before: now };
+    }
+
+    // Initial-run fallback: short lookback window
+    const lookbackDays = this.configService.get<number>('processing.initialLookbackDays') || 7;
+    const since = new Date(now);
+    since.setDate(since.getDate() - lookbackDays);
+    this.logger.log(`Using initial lookback strategy: ${lookbackDays} days (since ${since.toISOString()})`);
+    return { since, before: now };
+  }
+
+  /**
+   * Returns the date window for email selection.
+   * Simplified to use a single email selection strategy regardless of schedule type.
+   * ProcessingType is now only used for schedule timing validation and UI navigation.
    */
   private async calculateDateRangeForSchedule(
     schedule: ProcessingSchedule
-  ): Promise<{ since: Date; before?: Date }> {
-    switch (schedule.processingType) {
-      case ProcessingType.DATE_RANGE:
-        return {
-          since: schedule.dateRangeFrom,
-          before: schedule.dateRangeTo,
-        };
-
-      case ProcessingType.RECURRING: {
-        // For recurring schedules, process emails since last execution
-        const lastExecution = await this.getLastSuccessfulExecution(
-          schedule.id
-        );
-        const since = lastExecution?.completedAt || schedule.createdAt;
-        return { since, before: new Date() };
-      }
-
-      case ProcessingType.SPECIFIC_DATES: {
-        // Process emails from the next specific date
-        const nextDate = this.getNextSpecificDate(schedule);
-        return {
-          since: nextDate,
-          before: new Date(nextDate.getTime() + 24 * 60 * 60 * 1000), // +1 day
-        };
-      }
-
-      default:
-        throw new Error(
-          `Unsupported processing type: ${schedule.processingType}`
-        );
-    }
+  ): Promise<{ since: Date; before: Date }> {
+    return this.determineEmailSelectionStrategy(schedule);
   }
 
   /**
@@ -383,28 +413,11 @@ export class ScheduleOrchestratorService {
     });
   }
 
-  /**
-   * Selects the next upcoming date from SPECIFIC_DATES configuration.
-   * Throws when no future dates are present.
-   */
-  private getNextSpecificDate(schedule: ProcessingSchedule): Date {
-    const specificDates = schedule.specificDates as string[];
-    const now = new Date();
 
-    const futureDates = specificDates
-      .map((d) => new Date(d))
-      .filter((d) => d > now)
-      .sort((a, b) => a.getTime() - b.getTime());
-
-    if (futureDates.length === 0) {
-      throw new Error('No future dates available in schedule configuration');
-    }
-
-    return futureDates[0];
-  }
 
   /**
    * Calculates and persists the nextExecutionAt for the schedule after a run.
+   * ProcessingType determines WHEN to run next (schedule timing), not what emails to process.
    * - DATE_RANGE: disables schedule after one-time execution
    * - RECURRING: parses cron with timezone to compute next occurrence
    * - SPECIFIC_DATES: advances to the next future date or clears nextExecutionAt
@@ -471,13 +484,44 @@ export class ScheduleOrchestratorService {
    */
   private async fetchEmailsForSchedule(
     schedule: ProcessingSchedule,
-    dateRange: { since: Date; before?: Date }
+    dateRange: { since: Date; before: Date },
+    limit: number
   ): Promise<EmailMessage[]> {
     return this.imapService.fetchEmailsWithDateFilter(
       schedule.emailAccountId,
       dateRange.since,
       dateRange.before,
-      1000 // Max emails per execution
+      limit
     );
+  }
+
+  /**
+   * Simple check for LLM availability using configured URL
+   * @returns Promise<boolean> - true if LLM is available, false otherwise
+   */
+  private async checkLLMAvailability(): Promise<boolean> {
+    try {
+      const ollamaUrl = this.configService.get('llm.ollamaUrl');
+      if (!ollamaUrl) {
+        this.logger.error('LLM URL not configured');
+        return false;
+      }
+
+      // Simple ping to check if Ollama is running
+      const response = await fetch(`${ollamaUrl.replace(/\/$/, '')}/api/tags`, {
+        method: 'GET',
+        signal: AbortSignal.timeout(3000), // 3 second timeout
+      });
+
+      const isAvailable = response.ok;
+      if (!isAvailable) {
+        this.logger.error(`LLM service check failed with status: ${response.status}`);
+      }
+      
+      return isAvailable;
+    } catch (error) {
+      this.logger.error(`LLM service is not available: ${error.message}`);
+      return false;
+    }
   }
 }

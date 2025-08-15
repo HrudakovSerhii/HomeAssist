@@ -39,10 +39,10 @@ export class IngestEmailsDto implements ApiIngestEmailsDto {
   @IsNumber()
   @Min(1)
   @Max(50)
-  limit: number = 5;
+  limit = 5;
 
   @IsString()
-  folder: string = 'INBOX';
+  folder = 'INBOX';
 
   @IsOptional()
   @IsISO8601()
@@ -64,10 +64,10 @@ export class IngestUserEmailsDto implements ApiIngestUserEmailsDto {
   @IsNumber()
   @Min(1)
   @Max(50)
-  limit: number = 5;
+  limit = 5;
 
   @IsString()
-  folder: string = 'INBOX';
+  folder = 'INBOX';
 
   @IsOptional()
   @IsISO8601()
@@ -91,7 +91,7 @@ export class ProcessBatchDto implements ApiProcessBatchDto {
   @IsNumber()
   @Min(1)
   @Max(20)
-  limit: number = 5;
+  limit = 5;
 }
 
 @Controller('email')
