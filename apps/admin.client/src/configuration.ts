@@ -30,6 +30,16 @@ export const API_ENDPOINTS = {
     processBatch: '/email/process/batch',
     status: (userId: string) => `/email/status/${userId}`,
   },
+  schedules: {
+    list: '/processing-schedules',
+    create: '/processing-schedules',
+    update: (id: string) => `/processing-schedules/${id}`,
+    remove: (id: string) => `/processing-schedules/${id}`,
+    validate: '/processing-schedules/validate',
+    execute: (id: string) => `/processing-schedules/${id}/execute`,
+    status: (id: string) => `/processing-schedules/${id}/status`,
+    cronCalendar: '/processing-schedules/cron-calendar',
+  },
   health: '/health',
   llm: {
     execute: '/llm/execute',
@@ -46,4 +56,7 @@ export const APP_ENDPOINTS = {
   login: '/login',
   addAccount: '/add-account',
   dashboard: '/dashboard',
+  schedules: '/schedules',
+  editScheduleNew: '/schedules/new',
+  editSchedule: (id: string) => `/schedules/${id}`,
 };

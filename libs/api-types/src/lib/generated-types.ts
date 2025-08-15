@@ -300,7 +300,9 @@ export interface paths {
         /** Get user email accounts */
         get: {
             parameters: {
-                query?: never;
+                query: {
+                    userId: string;
+                };
                 header?: never;
                 path?: never;
                 cookie?: never;
@@ -779,6 +781,515 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/processing-schedules": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get user processing schedules */
+        get: {
+            parameters: {
+                query: {
+                    userId: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description List of schedules */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProcessingScheduleWithAccount"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        /** Create processing schedule */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["CreateProcessingScheduleDto"];
+                };
+            };
+            responses: {
+                /** @description Created */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProcessingSchedule"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/processing-schedules/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Update processing schedule */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["UpdateProcessingScheduleDto"];
+                };
+            };
+            responses: {
+                /** @description Updated */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProcessingSchedule"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        /** Delete processing schedule */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Deleted */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            success?: boolean;
+                        };
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/processing-schedules/{id}/execute": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Execute schedule manually */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Execution started */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            success?: boolean;
+                            /** Format: uuid */
+                            executionId?: string;
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/processing-schedules/{id}/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get schedule execution status */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Status */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ScheduleExecutionStatus"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/processing-schedules/validate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Validate schedule configuration */
+        post: {
+            parameters: {
+                query?: {
+                    excludeId?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["CreateProcessingScheduleDto"];
+                };
+            };
+            responses: {
+                /** @description Validation result */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ValidationResult"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/processing-schedules/check-conflicts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Check schedule conflicts */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        cronExpression?: string;
+                        timezone: string;
+                        specificDates?: string[];
+                        /** Format: uuid */
+                        excludeId?: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description Conflict check result */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            hasConflicts: boolean;
+                            conflicts: {
+                                /** Format: date-time */
+                                conflictTime?: string;
+                                conflictingSchedules?: string[];
+                                suggestedAlternatives?: string[];
+                            }[];
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/processing-schedules/cron-calendar": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get cron job calendar */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Calendar */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CronJobCalendarEntry"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/processing-schedules/analytics/{userId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get processing analytics */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    userId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Analytics */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProcessingAnalytics"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/processing-schedules/bulk-enable": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Bulk enable schedules */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        scheduleIds: string[];
+                    };
+                };
+            };
+            responses: {
+                /** @description Bulk enable result */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["BulkUpdateResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/processing-schedules/bulk-disable": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Bulk disable schedules */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        scheduleIds: string[];
+                    };
+                };
+            };
+            responses: {
+                /** @description Bulk disable result */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["BulkUpdateResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/processing-schedules/{id}/details": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get schedule details */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Details */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ScheduleDetails"];
+                    };
+                };
+                /** @description Not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1148,6 +1659,209 @@ export interface components {
             /** @enum {string} */
             type: "register" | "progress";
             data: string | components["schemas"]["EmailIngestionProgress"];
+        };
+        /** @enum {string} */
+        ProcessingType: "DATE_RANGE" | "RECURRING" | "SPECIFIC_DATES";
+        /** @enum {string} */
+        LlmFocus: "general" | "sentiment" | "urgency";
+        CreateProcessingScheduleDto: {
+            /** Format: uuid */
+            userId: string;
+            /** Format: uuid */
+            emailAccountId: string;
+            name: string;
+            description?: string;
+            processingType: components["schemas"]["ProcessingType"];
+            /** Format: date-time */
+            dateRangeFrom?: string;
+            /** Format: date-time */
+            dateRangeTo?: string;
+            cronExpression?: string;
+            timezone?: string;
+            specificDates?: string[];
+            batchSize?: number;
+            emailTypePriorities?: {
+                [key: string]: string;
+            };
+            senderPriorities?: {
+                [key: string]: string;
+            };
+            llmFocus?: components["schemas"]["LlmFocus"];
+            isEnabled?: boolean;
+            isDefault?: boolean;
+        };
+        UpdateProcessingScheduleDto: {
+            /** Format: uuid */
+            userId?: string;
+            /** Format: uuid */
+            emailAccountId?: string;
+            name?: string;
+            description?: string;
+            processingType?: components["schemas"]["ProcessingType"];
+            /** Format: date-time */
+            dateRangeFrom?: string;
+            /** Format: date-time */
+            dateRangeTo?: string;
+            cronExpression?: string;
+            timezone?: string;
+            specificDates?: string[];
+            batchSize?: number;
+            emailTypePriorities?: {
+                [key: string]: string;
+            };
+            senderPriorities?: {
+                [key: string]: string;
+            };
+            llmFocus?: components["schemas"]["LlmFocus"];
+            isEnabled?: boolean;
+            isDefault?: boolean;
+        };
+        ProcessingSchedule: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            userId: string;
+            /** Format: uuid */
+            emailAccountId: string;
+            name: string;
+            description?: string | null;
+            isEnabled: boolean;
+            isDefault: boolean;
+            processingType: components["schemas"]["ProcessingType"];
+            /** Format: date-time */
+            dateRangeFrom?: string | null;
+            /** Format: date-time */
+            dateRangeTo?: string | null;
+            cronExpression?: string | null;
+            timezone: string;
+            specificDates?: string[] | null;
+            batchSize: number;
+            emailTypePriorities: {
+                [key: string]: string;
+            };
+            senderPriorities: {
+                [key: string]: string;
+            };
+            llmFocus: components["schemas"]["LlmFocus"];
+            /** Format: date-time */
+            lastExecutedAt?: string | null;
+            /** Format: date-time */
+            nextExecutionAt?: string | null;
+            totalExecutions: number;
+            successfulExecutions: number;
+            failedExecutions: number;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        ProcessingScheduleWithAccount: {
+            emailAccount?: {
+                /** Format: email */
+                email: string;
+                displayName: string;
+            };
+        } & components["schemas"]["ProcessingSchedule"];
+        ValidationResult: {
+            valid: boolean;
+            errors: string[];
+            warnings: string[];
+            cronConflicts?: {
+                /** Format: date-time */
+                conflictTime?: string;
+                conflictingSchedules?: string[];
+                suggestedAlternatives?: string[];
+            }[];
+        };
+        ScheduleExecutionStatus: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            scheduleId: string;
+            scheduleName: string;
+            /** @enum {string} */
+            status: "RUNNING" | "COMPLETED" | "FAILED" | "CANCELLED" | "PENDING";
+            progress: {
+                totalBatches: number;
+                completedBatches: number;
+                totalEmails: number;
+                processedEmails: number;
+                failedEmails: number;
+                completionPercentage: number;
+            };
+            timing: {
+                /** Format: date-time */
+                startedAt: string;
+                /** Format: date-time */
+                completedAt?: string;
+                /** Format: date-time */
+                estimatedCompletion?: string;
+                processingDuration?: number;
+            };
+            error?: {
+                message?: string;
+                details?: Record<string, never>;
+            };
+        };
+        CronJobCalendarEntry: {
+            /** Format: uuid */
+            configId: string;
+            configName: string;
+            /** Format: uuid */
+            userId: string;
+            /** Format: email */
+            accountEmail: string;
+            cronExpression: string;
+            nextExecutions: string[];
+            timezone: string;
+            isEnabled: boolean;
+            lastExecution?: {
+                /** Format: date-time */
+                startedAt?: string;
+                status?: string;
+                processingDuration?: number;
+            };
+        };
+        ProcessingAnalytics: {
+            /** Format: uuid */
+            userId: string;
+            totalSchedules: number;
+            activeSchedules: number;
+            totalExecutions: number;
+            successfulExecutions: number;
+            failedExecutions: number;
+            averageProcessingTime: number;
+            emailsProcessedToday: number;
+            emailsProcessedThisWeek: number;
+            emailsProcessedThisMonth: number;
+            recentExecutions: {
+                /** Format: uuid */
+                id: string;
+                scheduleName: string;
+                status: string;
+                /** Format: date-time */
+                startedAt: string;
+                /** Format: date-time */
+                completedAt?: string;
+                processedEmails: number;
+                failedEmails: number;
+            }[];
+        };
+        BulkUpdateResponse: {
+            success: boolean;
+            updatedCount: number;
+            errors?: string[];
+        };
+        ScheduleDetails: {
+            schedule?: components["schemas"]["ProcessingSchedule"];
+            executionStats?: {
+                totalExecutions?: number;
+                successfulExecutions?: number;
+                failedExecutions?: number;
+                averageProcessingTime?: number;
+                /** Format: date-time */
+                lastExecutionAt?: string;
+            };
         };
     };
     responses: never;

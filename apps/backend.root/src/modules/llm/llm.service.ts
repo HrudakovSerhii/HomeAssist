@@ -1,9 +1,11 @@
-import { Injectable, HttpException } from '@nestjs/common';
+import { Injectable, HttpException, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import axios from 'axios';
 
 @Injectable()
 export class LLMService {
+  private readonly logger = new Logger(LLMService.name);
+  
   constructor(private readonly configService: ConfigService) {}
 
   async executeChat(

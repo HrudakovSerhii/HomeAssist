@@ -8,6 +8,7 @@ import { AuthModule } from './modules/auth/auth.module';
 import { LLMModule } from './modules/llm/llm.module';
 import { EmailModule } from './modules/email/email.module';
 import { ProcessTemplateModule } from './modules/process-template/process-template.module';
+import { ProcessingScheduleModule } from './modules/processing-schedule/processing-schedule.module';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { ProcessTemplateModule } from './modules/process-template/process-templa
     DataPreviewModule,
     AuthModule,
     LLMModule,
+    ProcessingScheduleModule,
   ],
   controllers: [],
   providers: [],

@@ -26,6 +26,8 @@ import type {
   TestImapDto as ApiTestImapDto,
 } from '@home-assist/api-types';
 
+import { ProcessingScheduleService } from '../processing-schedule/processing-schedule.service';
+
 // DTO classes with validation decorators that match API types
 class CreateUserDto implements ApiCreateUserDto {
   @IsString()
@@ -87,7 +89,8 @@ export class AuthController {
   constructor(
     private readonly authService: AuthService,
     private readonly imapService: ImapService,
-    private readonly templateService: TemplateService
+    private readonly templateService: TemplateService,
+    private readonly scheduleService: ProcessingScheduleService
   ) {}
 
   /**
@@ -129,10 +132,17 @@ export class AuthController {
   @Post('add-account')
   async addAccount(@Body() addAccountDto: AddEmailAccountDto) {
     try {
-      return await this.authService.addEmailAccount(
+      const emailAccount = await this.authService.addEmailAccount(
         addAccountDto.userId,
         addAccountDto
       );
+
+      await this.scheduleService.createDefaultScheduleForNewAccount(
+        addAccountDto.userId,
+        emailAccount.account.id
+      );
+
+      return emailAccount;
     } catch (error) {
       if (error instanceof HttpException) {
         throw error;

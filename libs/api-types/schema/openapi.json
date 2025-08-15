@@ -1066,6 +1066,241 @@
           }
         },
         "required": ["type", "data"]
+      },
+      "ProcessingType": {
+        "type": "string",
+        "enum": ["DATE_RANGE", "RECURRING", "SPECIFIC_DATES"]
+      },
+      "LlmFocus": {
+        "type": "string",
+        "enum": ["general", "sentiment", "urgency"]
+      },
+      "CreateProcessingScheduleDto": {
+        "type": "object",
+        "properties": {
+          "userId": { "type": "string", "format": "uuid" },
+          "emailAccountId": { "type": "string", "format": "uuid" },
+          "name": { "type": "string" },
+          "description": { "type": "string" },
+          "processingType": { "$ref": "#/components/schemas/ProcessingType" },
+          "dateRangeFrom": { "type": "string", "format": "date-time" },
+          "dateRangeTo": { "type": "string", "format": "date-time" },
+          "cronExpression": { "type": "string" },
+          "timezone": { "type": "string" },
+          "specificDates": { "type": "array", "items": { "type": "string", "format": "date-time" } },
+          "batchSize": { "type": "integer", "minimum": 1, "maximum": 20 },
+          "emailTypePriorities": { "type": "object", "additionalProperties": { "type": "string" } },
+          "senderPriorities": { "type": "object", "additionalProperties": { "type": "string" } },
+          "llmFocus": { "$ref": "#/components/schemas/LlmFocus" },
+          "isEnabled": { "type": "boolean" },
+          "isDefault": { "type": "boolean" }
+        },
+        "required": ["userId", "emailAccountId", "name", "processingType"]
+      },
+      "UpdateProcessingScheduleDto": {
+        "type": "object",
+        "properties": {
+          "userId": { "type": "string", "format": "uuid" },
+          "emailAccountId": { "type": "string", "format": "uuid" },
+          "name": { "type": "string" },
+          "description": { "type": "string" },
+          "processingType": { "$ref": "#/components/schemas/ProcessingType" },
+          "dateRangeFrom": { "type": "string", "format": "date-time" },
+          "dateRangeTo": { "type": "string", "format": "date-time" },
+          "cronExpression": { "type": "string" },
+          "timezone": { "type": "string" },
+          "specificDates": { "type": "array", "items": { "type": "string", "format": "date-time" } },
+          "batchSize": { "type": "integer", "minimum": 1, "maximum": 20 },
+          "emailTypePriorities": { "type": "object", "additionalProperties": { "type": "string" } },
+          "senderPriorities": { "type": "object", "additionalProperties": { "type": "string" } },
+          "llmFocus": { "$ref": "#/components/schemas/LlmFocus" },
+          "isEnabled": { "type": "boolean" },
+          "isDefault": { "type": "boolean" }
+        }
+      },
+      "ProcessingSchedule": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "userId": { "type": "string", "format": "uuid" },
+          "emailAccountId": { "type": "string", "format": "uuid" },
+          "name": { "type": "string" },
+          "description": { "type": "string", "nullable": true },
+          "isEnabled": { "type": "boolean" },
+          "isDefault": { "type": "boolean" },
+          "processingType": { "$ref": "#/components/schemas/ProcessingType" },
+          "dateRangeFrom": { "type": "string", "format": "date-time", "nullable": true },
+          "dateRangeTo": { "type": "string", "format": "date-time", "nullable": true },
+          "cronExpression": { "type": "string", "nullable": true },
+          "timezone": { "type": "string" },
+          "specificDates": { "type": "array", "items": { "type": "string", "format": "date-time" }, "nullable": true },
+          "batchSize": { "type": "integer" },
+          "emailTypePriorities": { "type": "object", "additionalProperties": { "type": "string" } },
+          "senderPriorities": { "type": "object", "additionalProperties": { "type": "string" } },
+          "llmFocus": { "$ref": "#/components/schemas/LlmFocus" },
+          "lastExecutedAt": { "type": "string", "format": "date-time", "nullable": true },
+          "nextExecutionAt": { "type": "string", "format": "date-time", "nullable": true },
+          "totalExecutions": { "type": "integer" },
+          "successfulExecutions": { "type": "integer" },
+          "failedExecutions": { "type": "integer" },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "updatedAt": { "type": "string", "format": "date-time" }
+        },
+        "required": ["id", "userId", "emailAccountId", "name", "isEnabled", "isDefault", "processingType", "timezone", "batchSize", "emailTypePriorities", "senderPriorities", "llmFocus", "totalExecutions", "successfulExecutions", "failedExecutions", "createdAt", "updatedAt"]
+      },
+      "ProcessingScheduleWithAccount": {
+        "type": "object",
+        "allOf": [
+          { "$ref": "#/components/schemas/ProcessingSchedule" }
+        ],
+        "properties": {
+          "emailAccount": {
+            "type": "object",
+            "properties": {
+              "email": { "type": "string", "format": "email" },
+              "displayName": { "type": "string" }
+            },
+            "required": ["email", "displayName"]
+          }
+        }
+      },
+      "ValidationResult": {
+        "type": "object",
+        "properties": {
+          "valid": { "type": "boolean" },
+          "errors": { "type": "array", "items": { "type": "string" } },
+          "warnings": { "type": "array", "items": { "type": "string" } },
+          "cronConflicts": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "conflictTime": { "type": "string", "format": "date-time" },
+                "conflictingSchedules": { "type": "array", "items": { "type": "string" } },
+                "suggestedAlternatives": { "type": "array", "items": { "type": "string", "format": "date-time" } }
+              }
+            }
+          }
+        },
+        "required": ["valid", "errors", "warnings"]
+      },
+      "ScheduleExecutionStatus": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "scheduleId": { "type": "string", "format": "uuid" },
+          "scheduleName": { "type": "string" },
+          "status": { "type": "string", "enum": ["RUNNING", "COMPLETED", "FAILED", "CANCELLED", "PENDING"] },
+          "progress": {
+            "type": "object",
+            "properties": {
+              "totalBatches": { "type": "integer" },
+              "completedBatches": { "type": "integer" },
+              "totalEmails": { "type": "integer" },
+              "processedEmails": { "type": "integer" },
+              "failedEmails": { "type": "integer" },
+              "completionPercentage": { "type": "number" }
+            },
+            "required": ["totalBatches", "completedBatches", "totalEmails", "processedEmails", "failedEmails", "completionPercentage"]
+          },
+          "timing": {
+            "type": "object",
+            "properties": {
+              "startedAt": { "type": "string", "format": "date-time" },
+              "completedAt": { "type": "string", "format": "date-time" },
+              "estimatedCompletion": { "type": "string", "format": "date-time" },
+              "processingDuration": { "type": "number" }
+            },
+            "required": ["startedAt"]
+          },
+          "error": {
+            "type": "object",
+            "properties": {
+              "message": { "type": "string" },
+              "details": { "type": "object" }
+            }
+          }
+        },
+        "required": ["id", "scheduleId", "scheduleName", "status", "progress", "timing"]
+      },
+      "CronJobCalendarEntry": {
+        "type": "object",
+        "properties": {
+          "configId": { "type": "string", "format": "uuid" },
+          "configName": { "type": "string" },
+          "userId": { "type": "string", "format": "uuid" },
+          "accountEmail": { "type": "string", "format": "email" },
+          "cronExpression": { "type": "string" },
+          "nextExecutions": { "type": "array", "items": { "type": "string", "format": "date-time" } },
+          "timezone": { "type": "string" },
+          "isEnabled": { "type": "boolean" },
+          "lastExecution": {
+            "type": "object",
+            "properties": {
+              "startedAt": { "type": "string", "format": "date-time" },
+              "status": { "type": "string" },
+              "processingDuration": { "type": "number" }
+            }
+          }
+        },
+        "required": ["configId", "configName", "userId", "accountEmail", "cronExpression", "nextExecutions", "timezone", "isEnabled"]
+      },
+      "ProcessingAnalytics": {
+        "type": "object",
+        "properties": {
+          "userId": { "type": "string", "format": "uuid" },
+          "totalSchedules": { "type": "integer" },
+          "activeSchedules": { "type": "integer" },
+          "totalExecutions": { "type": "integer" },
+          "successfulExecutions": { "type": "integer" },
+          "failedExecutions": { "type": "integer" },
+          "averageProcessingTime": { "type": "number" },
+          "emailsProcessedToday": { "type": "integer" },
+          "emailsProcessedThisWeek": { "type": "integer" },
+          "emailsProcessedThisMonth": { "type": "integer" },
+          "recentExecutions": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": { "type": "string", "format": "uuid" },
+                "scheduleName": { "type": "string" },
+                "status": { "type": "string" },
+                "startedAt": { "type": "string", "format": "date-time" },
+                "completedAt": { "type": "string", "format": "date-time" },
+                "processedEmails": { "type": "integer" },
+                "failedEmails": { "type": "integer" }
+              },
+              "required": ["id", "scheduleName", "status", "startedAt", "processedEmails", "failedEmails"]
+            }
+          }
+        },
+        "required": ["userId", "totalSchedules", "activeSchedules", "totalExecutions", "successfulExecutions", "failedExecutions", "averageProcessingTime", "emailsProcessedToday", "emailsProcessedThisWeek", "emailsProcessedThisMonth", "recentExecutions"]
+      },
+      "BulkUpdateResponse": {
+        "type": "object",
+        "properties": {
+          "success": { "type": "boolean" },
+          "updatedCount": { "type": "integer" },
+          "errors": { "type": "array", "items": { "type": "string" } }
+        },
+        "required": ["success", "updatedCount"]
+      },
+      "ScheduleDetails": {
+        "type": "object",
+        "properties": {
+          "schedule": { "$ref": "#/components/schemas/ProcessingSchedule" },
+          "executionStats": {
+            "type": "object",
+            "properties": {
+              "totalExecutions": { "type": "integer" },
+              "successfulExecutions": { "type": "integer" },
+              "failedExecutions": { "type": "integer" },
+              "averageProcessingTime": { "type": "number" },
+              "lastExecutionAt": { "type": "string", "format": "date-time" }
+            }
+          }
+        }
       }
     }
   },
@@ -1282,6 +1517,17 @@
       "get": {
         "tags": ["Auth"],
         "summary": "Get user email accounts",
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "User accounts retrieved successfully",
@@ -1321,110 +1567,19 @@
         "tags": ["Data"],
         "summary": "Get processed emails with filtering and pagination",
         "parameters": [
-          {
-            "name": "page",
-            "in": "query",
-            "schema": {
-              "type": "integer",
-              "minimum": 1,
-              "default": 1
-            }
-          },
-          {
-            "name": "limit",
-            "in": "query",
-            "schema": {
-              "type": "integer",
-              "minimum": 1,
-              "maximum": 100,
-              "default": 10
-            }
-          },
-          {
-            "name": "search",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "category",
-            "in": "query",
-            "schema": {
-              "$ref": "#/components/schemas/EmailCategory"
-            }
-          },
-          {
-            "name": "priority",
-            "in": "query",
-            "schema": {
-              "$ref": "#/components/schemas/Priority"
-            }
-          },
-          {
-            "name": "sentiment",
-            "in": "query",
-            "schema": {
-              "$ref": "#/components/schemas/Sentiment"
-            }
-          },
-          {
-            "name": "entityType",
-            "in": "query",
-            "schema": {
-              "$ref": "#/components/schemas/EntityType"
-            }
-          },
-          {
-            "name": "actionType",
-            "in": "query",
-            "schema": {
-              "$ref": "#/components/schemas/ActionType"
-            }
-          },
-          {
-            "name": "dateFrom",
-            "in": "query",
-            "schema": {
-              "type": "string",
-              "format": "date"
-            }
-          },
-          {
-            "name": "dateTo",
-            "in": "query",
-            "schema": {
-              "type": "string",
-              "format": "date"
-            }
-          },
-          {
-            "name": "minConfidence",
-            "in": "query",
-            "schema": {
-              "type": "number",
-              "minimum": 0,
-              "maximum": 1
-            }
-          },
-          {
-            "name": "sortBy",
-            "in": "query",
-            "schema": {
-              "type": "string",
-              "enum": ["createdAt", "updatedAt", "confidence", "receivedAt"],
-              "default": "createdAt"
-            }
-          },
-          {
-            "name": "sortOrder",
-            "in": "query",
-            "schema": {
-              "type": "string",
-              "enum": ["asc", "desc"],
-              "default": "desc"
-            }
-          }
+          { "name": "page", "in": "query", "schema": { "type": "integer", "minimum": 1, "default": 1 } },
+          { "name": "limit", "in": "query", "schema": { "type": "integer", "minimum": 1, "maximum": 100, "default": 10 } },
+          { "name": "search", "in": "query", "schema": { "type": "string" } },
+          { "name": "category", "in": "query", "schema": { "$ref": "#/components/schemas/EmailCategory" } },
+          { "name": "priority", "in": "query", "schema": { "$ref": "#/components/schemas/Priority" } },
+          { "name": "sentiment", "in": "query", "schema": { "$ref": "#/components/schemas/Sentiment" } },
+          { "name": "entityType", "in": "query", "schema": { "$ref": "#/components/schemas/EntityType" } },
+          { "name": "actionType", "in": "query", "schema": { "$ref": "#/components/schemas/ActionType" } },
+          { "name": "dateFrom", "in": "query", "schema": { "type": "string", "format": "date" } },
+          { "name": "dateTo", "in": "query", "schema": { "type": "string", "format": "date" } },
+          { "name": "minConfidence", "in": "query", "schema": { "type": "number", "minimum": 0, "maximum": 1 } },
+          { "name": "sortBy", "in": "query", "schema": { "type": "string", "enum": ["createdAt", "updatedAt", "confidence", "receivedAt"], "default": "createdAt" } },
+          { "name": "sortOrder", "in": "query", "schema": { "type": "string", "enum": ["asc", "desc"], "default": "desc" } }
         ],
         "responses": {
           "200": {
@@ -1473,66 +1628,14 @@
         "tags": ["Data"],
         "summary": "Update action item completion status",
         "parameters": [
-          {
-            "name": "emailId",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            }
-          },
-          {
-            "name": "actionIndex",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "integer",
-              "minimum": 0
-            }
-          }
+          { "name": "emailId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } },
+          { "name": "actionIndex", "in": "path", "required": true, "schema": { "type": "integer", "minimum": 0 } }
         ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/UpdateActionItemDto"
-              }
-            }
-          }
-        },
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/UpdateActionItemDto" } } } },
         "responses": {
-          "200": {
-            "description": "Action item updated successfully",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ActionItemResponse"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Not found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          }
+          "200": { "description": "Action item updated successfully", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ActionItemResponse" } } } },
+          "400": { "description": "Bad request", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "404": { "description": "Not found", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
         }
       }
     },
@@ -1540,47 +1643,11 @@
       "post": {
         "tags": ["LLM"],
         "summary": "Execute LLM prompt",
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/LLMExecuteDto"
-              }
-            }
-          }
-        },
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/LLMExecuteDto" } } } },
         "responses": {
-          "200": {
-            "description": "LLM execution result",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LLMResponse"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Internal server error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          }
+          "200": { "description": "LLM execution result", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/LLMResponse" } } } },
+          "400": { "description": "Bad request", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "500": { "description": "Internal server error", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
         }
       }
     },
@@ -1588,37 +1655,10 @@
       "post": {
         "tags": ["Email"],
         "summary": "Manually trigger email ingestion",
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/IngestEmailsDto"
-              }
-            }
-          }
-        },
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/IngestEmailsDto" } } } },
         "responses": {
-          "200": {
-            "description": "Email ingestion completed",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/EmailIngestionResponse"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Internal server error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          }
+          "200": { "description": "Email ingestion completed", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/EmailIngestionResponse" } } } },
+          "500": { "description": "Internal server error", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
         }
       }
     },
@@ -1626,95 +1666,25 @@
       "post": {
         "tags": ["Email"],
         "summary": "Ingest and process emails for a specific user",
-        "parameters": [
-          {
-            "name": "userId",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": false,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/IngestUserEmailsDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Email ingestion completed",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/EmailIngestionResponse"
-                }
-              }
-            }
-          }
-        }
+        "parameters": [ { "name": "userId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } } ],
+        "requestBody": { "required": false, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/IngestUserEmailsDto" } } } },
+        "responses": { "200": { "description": "Email ingestion completed", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/EmailIngestionResponse" } } } } }
       }
     },
     "/email/status/{userId}": {
       "get": {
         "tags": ["Email"],
         "summary": "Get processing status for a user",
-        "parameters": [
-          {
-            "name": "userId",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Processing status",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProcessingStatusResponse"
-                }
-              }
-            }
-          }
-        }
+        "parameters": [ { "name": "userId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } } ],
+        "responses": { "200": { "description": "Processing status", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ProcessingStatusResponse" } } } } }
       }
     },
     "/email/{id}/process": {
       "post": {
         "tags": ["Email"],
         "summary": "Manually process a specific email",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": false,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ProcessEmailDto"
-              }
-            }
-          }
-        },
+        "parameters": [ { "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } } ],
+        "requestBody": { "required": false, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ProcessEmailDto" } } } },
         "responses": {
           "200": {
             "description": "Email processed successfully",
@@ -1723,16 +1693,9 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "emailId": {
-                      "type": "string",
-                      "format": "uuid"
-                    },
-                    "success": {
-                      "type": "boolean"
-                    },
-                    "error": {
-                      "type": "string"
-                    }
+                    "emailId": { "type": "string", "format": "uuid" },
+                    "success": { "type": "boolean" },
+                    "error": { "type": "string" }
                   }
                 }
               }
@@ -1745,69 +1708,172 @@
       "post": {
         "tags": ["Email"],
         "summary": "Process batch of pending emails",
+        "requestBody": { "required": false, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ProcessBatchDto" } } } },
+        "responses": { "200": { "description": "Batch processing completed", "content": { "application/json": { "schema": { "type": "object", "properties": { "success": { "type": "boolean" }, "message": { "type": "string" }, "processed": { "type": "integer" }, "failed": { "type": "integer" } } } } } } }
+      }
+    },
+    "/processing-schedules": {
+      "get": {
+        "tags": ["Schedules"],
+        "summary": "Get user processing schedules",
+        "parameters": [
+          { "name": "userId", "in": "query", "required": true, "schema": { "type": "string", "format": "uuid" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of schedules",
+            "content": {
+              "application/json": {
+                "schema": { "type": "array", "items": { "$ref": "#/components/schemas/ProcessingScheduleWithAccount" } }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["Schedules"],
+        "summary": "Create processing schedule",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CreateProcessingScheduleDto" } } } },
+        "responses": { "201": { "description": "Created", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ProcessingSchedule" } } } } }
+      }
+    },
+    "/processing-schedules/{id}": {
+      "put": {
+        "tags": ["Schedules"],
+        "summary": "Update processing schedule",
+        "parameters": [ { "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } } ],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/UpdateProcessingScheduleDto" } } } },
+        "responses": { "200": { "description": "Updated", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ProcessingSchedule" } } } } }
+      },
+      "delete": {
+        "tags": ["Schedules"],
+        "summary": "Delete processing schedule",
+        "parameters": [ { "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } } ],
+        "responses": { "200": { "description": "Deleted", "content": { "application/json": { "schema": { "type": "object", "properties": { "success": { "type": "boolean" } } } } } } }
+      }
+    },
+    "/processing-schedules/{id}/execute": {
+      "post": {
+        "tags": ["Schedules"],
+        "summary": "Execute schedule manually",
+        "parameters": [ { "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } } ],
+        "responses": { "200": { "description": "Execution started", "content": { "application/json": { "schema": { "type": "object", "properties": { "success": { "type": "boolean" }, "executionId": { "type": "string", "format": "uuid" } } } } } } }
+      }
+    },
+    "/processing-schedules/{id}/status": {
+      "get": {
+        "tags": ["Schedules"],
+        "summary": "Get schedule execution status",
+        "parameters": [ { "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } } ],
+        "responses": { "200": { "description": "Status", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ScheduleExecutionStatus" } } } } }
+      }
+    },
+    "/processing-schedules/validate": {
+      "post": {
+        "tags": ["Schedules"],
+        "summary": "Validate schedule configuration",
+        "parameters": [ { "name": "excludeId", "in": "query", "schema": { "type": "string", "format": "uuid" } } ],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CreateProcessingScheduleDto" } } } },
+        "responses": { "200": { "description": "Validation result", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ValidationResult" } } } } }
+      }
+    },
+    "/processing-schedules/check-conflicts": {
+      "post": {
+        "tags": ["Schedules"],
+        "summary": "Check schedule conflicts",
         "requestBody": {
-          "required": false,
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/ProcessBatchDto"
+                "type": "object",
+                "properties": {
+                  "cronExpression": { "type": "string" },
+                  "timezone": { "type": "string" },
+                  "specificDates": { "type": "array", "items": { "type": "string", "format": "date-time" } },
+                  "excludeId": { "type": "string", "format": "uuid" }
+                },
+                "required": ["timezone"]
               }
             }
           }
         },
         "responses": {
           "200": {
-            "description": "Batch processing completed",
+            "description": "Conflict check result",
             "content": {
               "application/json": {
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "success": {
-                      "type": "boolean"
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "processed": {
-                      "type": "integer"
-                    },
-                    "failed": {
-                      "type": "integer"
+                    "hasConflicts": { "type": "boolean" },
+                    "conflicts": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "conflictTime": { "type": "string", "format": "date-time" },
+                          "conflictingSchedules": { "type": "array", "items": { "type": "string" } },
+                          "suggestedAlternatives": { "type": "array", "items": { "type": "string", "format": "date-time" } }
+                        }
+                      }
                     }
-                  }
+                  },
+                  "required": ["hasConflicts", "conflicts"]
                 }
               }
             }
           }
         }
       }
+    },
+    "/processing-schedules/cron-calendar": {
+      "get": {
+        "tags": ["Schedules"],
+        "summary": "Get cron job calendar",
+        "responses": { "200": { "description": "Calendar", "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/CronJobCalendarEntry" } } } } } }
+      }
+    },
+    "/processing-schedules/analytics/{userId}": {
+      "get": {
+        "tags": ["Schedules"],
+        "summary": "Get processing analytics",
+        "parameters": [ { "name": "userId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } } ],
+        "responses": { "200": { "description": "Analytics", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ProcessingAnalytics" } } } } }
+      }
+    },
+    "/processing-schedules/bulk-enable": {
+      "post": {
+        "tags": ["Schedules"],
+        "summary": "Bulk enable schedules",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "properties": { "scheduleIds": { "type": "array", "items": { "type": "string", "format": "uuid" } } }, "required": ["scheduleIds"] } } } },
+        "responses": { "200": { "description": "Bulk enable result", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/BulkUpdateResponse" } } } } }
+      }
+    },
+    "/processing-schedules/bulk-disable": {
+      "post": {
+        "tags": ["Schedules"],
+        "summary": "Bulk disable schedules",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "properties": { "scheduleIds": { "type": "array", "items": { "type": "string", "format": "uuid" } } }, "required": ["scheduleIds"] } } } },
+        "responses": { "200": { "description": "Bulk disable result", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/BulkUpdateResponse" } } } } }
+      }
+    },
+    "/processing-schedules/{id}/details": {
+      "get": {
+        "tags": ["Schedules"],
+        "summary": "Get schedule details",
+        "parameters": [ { "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } } ],
+        "responses": { "200": { "description": "Details", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ScheduleDetails" } } } }, "404": { "description": "Not found", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } } }
+      }
     }
   },
   "tags": [
-    {
-      "name": "App",
-      "description": "Application endpoints"
-    },
-    {
-      "name": "Health",
-      "description": "Health check endpoints"
-    },
-    {
-      "name": "Auth",
-      "description": "Authentication and authorization endpoints"
-    },
-    {
-      "name": "Data",
-      "description": "Email data processing endpoints"
-    },
-    {
-      "name": "LLM",
-      "description": "LLM processing endpoints"
-    },
-    {
-      "name": "Email",
-      "description": "Email processing endpoints"
-    }
+    { "name": "App", "description": "Application endpoints" },
+    { "name": "Health", "description": "Health check endpoints" },
+    { "name": "Auth", "description": "Authentication and authorization endpoints" },
+    { "name": "Data", "description": "Email data processing endpoints" },
+    { "name": "LLM", "description": "LLM processing endpoints" },
+    { "name": "Email", "description": "Email processing endpoints" },
+    { "name": "Schedules", "description": "Processing schedule endpoints" }
   ]
 }

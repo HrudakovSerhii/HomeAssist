@@ -4,49 +4,49 @@ This document provides an overview of the migration tasks to convert the existin
 
 ## Task Files Created
 
-### 📋 [01-setup-tailwind-theme.md](tasks/01-setup-tailwind-theme.md)
+### 📋 [01-setup-tailwind-theme.md](tasks/general/01-setup-tailwind-theme.md)
 **Setup Tailwind Theme Configuration**
 - Extract colors from existing CSS variables
 - Configure custom Tailwind theme
 - Map design tokens to Tailwind utilities
 - Setup Inter font and custom styling
 
-### 🧩 [02-create-shared-components.md](tasks/02-create-shared-components.md)
+### 🧩 [02-create-shared-components.md](tasks/general/02-create-shared-components.md)
 **Create Shared/Reusable Components**
 - Build form components (InputField, SelectField, FormGroup, SubmitButton)
 - Create UI components (Button, Card, StatusBadge, LoadingSpinner, AlertMessage)
 - Implement layout components (PageContainer, Header, AuthLayout)
 - Build data components (DataTable, ExpandableRow, Pagination, FilterForm)
 
-### 🔐 [03-setup-auth-state-management.md](tasks/03-setup-auth-state-management.md)
+### 🔐 [03-setup-auth-state-management.md](tasks/general/03-setup-auth-state-management.md)
 **Setup Authentication & State Management**
 - Create AuthContext and providers
 - Build custom hooks (useAuth, useApi, useForm, useLocalStorage)
 - Implement API services (authService, apiClient)
 - Define TypeScript interfaces for API responses
 
-### 🔑 [04-implement-login-screen.md](tasks/04-implement-login-screen.md)
+### 🔑 [04-implement-login-screen.md](tasks/general/04-implement-login-screen.md)
 **Implement Login Screen & Route**
 - Convert login.html/login.js to React components
 - Implement login and register forms with validation
 - Setup tab switching between login/register
 - Integrate with authentication context and routing
 
-### 📧 [05-implement-add-account-screen.md](tasks/05-implement-add-account-screen.md)
+### 📧 [05-implement-add-account-screen.md](tasks/general/05-implement-add-account-screen.md)
 **Implement Add Account Screen & Route**
 - Convert add-account.html/add-account.js to React components
 - Build email account form with IMAP testing
 - Implement form validation and error handling
 - Add user info display and Gmail instructions
 
-### 📊 [06-implement-dashboard-screen.md](tasks/06-implement-dashboard-screen.md)
+### 📊 [06-implement-dashboard-screen.md](tasks/general/06-implement-dashboard-screen.md)
 **Implement Dashboard Screen & Route**
 - Convert data-preview.html/data-preview.js to React components
 - Build complex filtering system with multiple criteria
 - Implement expandable data table with sorting
 - Add pagination and data management features
 
-### 🚀 [07-migration-summary-and-integration.md](tasks/07-migration-summary-and-integration.md)
+### 🚀 [07-migration-summary-and-integration.md](tasks/general/07-migration-summary-and-integration.md)
 **Migration Summary & Integration**
 - Complete app routing configuration
 - Setup testing strategy (unit, integration, e2e)

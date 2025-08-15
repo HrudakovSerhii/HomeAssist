@@ -1,12 +1,24 @@
 import { Injectable, HttpException, HttpStatus } from '@nestjs/common';
-import { EmailCategory } from '@prisma/client';
+import { EmailCategory, LlmFocus } from '@prisma/client';
 
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { TemplateValidatorService } from './template-validator.service';
+import { EmailMessage } from '../../types/email.types';
+import { TemplateValidationResult, TemplateNames } from '../../types/template.types';
+import { TemplateConfig } from '../../types/email-processing.types';
 import {
-  EmailMessage,
-  TemplateValidationResult,
-} from '../../types/email.types';
+  ENHANCED_PRIORITY_TEMPLATE,
+  SENTIMENT_FOCUSED_TEMPLATE,
+  URGENCY_FOCUSED_TEMPLATE,
+} from './templates/email-analysis.template';
+
+// Processing schedule interface for user preferences
+interface ProcessingSchedule {
+  id: string;
+  senderPriorities?: Record<string, string>;
+  emailTypePriorities?: Record<string, string>;
+  llmFocus?: LlmFocus;
+}
 
 @Injectable()
 export class TemplateService {
@@ -432,6 +444,9 @@ export class TemplateService {
       FINANCIAL_PROCESSOR_TEMPLATE,
       NEWS_PROCESSOR_TEMPLATE,
       MARKETING_PROCESSOR_TEMPLATE,
+      ENHANCED_PRIORITY_TEMPLATE,
+      SENTIMENT_FOCUSED_TEMPLATE,
+      URGENCY_FOCUSED_TEMPLATE,
     } = await import('./templates');
 
     const defaultTemplates = [
@@ -441,6 +456,9 @@ export class TemplateService {
       FINANCIAL_PROCESSOR_TEMPLATE,
       NEWS_PROCESSOR_TEMPLATE,
       MARKETING_PROCESSOR_TEMPLATE,
+      ENHANCED_PRIORITY_TEMPLATE,
+      SENTIMENT_FOCUSED_TEMPLATE,
+      URGENCY_FOCUSED_TEMPLATE,
     ];
 
     const results = [];
@@ -476,5 +494,200 @@ export class TemplateService {
     }
 
     return results;
+  }
+
+  /**
+   * Generate prompt from template with data
+   */
+  async generatePrompt(
+    templateName: string,
+    data: {
+      email: EmailMessage;
+      priorityHints?: any;
+      userPreferences?: any;
+    }
+  ): Promise<string> {
+    const template = await this.getTemplateByName(templateName);
+    if (!template) {
+      throw new HttpException(`Template ${templateName} not found`, HttpStatus.NOT_FOUND);
+    }
+
+    // Replace template variables with data
+    let prompt = template.template;
+    
+    // Replace email data
+    prompt = prompt.replace('{{subject}}', data.email.subject || '');
+    prompt = prompt.replace('{{from}}', data.email.from || '');
+    prompt = prompt.replace('{{to}}', Array.isArray(data.email.to) ? data.email.to.join(', ') : data.email.to || '');
+    prompt = prompt.replace('{{body}}', data.email.bodyText || data.email.bodyHtml || '');
+
+    // Add priority hints if available
+    if (data.priorityHints) {
+      prompt = prompt.replace('{{priorityHints}}', JSON.stringify(data.priorityHints, null, 2));
+    } else {
+      prompt = prompt.replace('{{priorityHints}}', '{}');
+    }
+
+    // Add user preferences if available
+    if (data.userPreferences) {
+      prompt = prompt.replace('{{userPreferences}}', JSON.stringify(data.userPreferences, null, 2));
+    } else {
+      prompt = prompt.replace('{{userPreferences}}', '{}');
+    }
+
+    return prompt;
+  }
+
+  /**
+   * Parse LLM response according to template schema
+   */
+  async parseResponse(templateName: string, response: string): Promise<any> {
+    const template = await this.getTemplateByName(templateName);
+    if (!template) {
+      throw new HttpException(`Template ${templateName} not found`, HttpStatus.NOT_FOUND);
+    }
+
+    try {
+      // Parse JSON response
+      const parsed = JSON.parse(response);
+
+      // Validate against schema
+      const validationResult = await this.validateLLMResponse(parsed);
+      if (!validationResult.isValid) {
+        throw new Error(`Invalid response format: ${validationResult.errors.join(', ')}`);
+      }
+
+      return parsed;
+    } catch (error) {
+      throw new HttpException(
+        `Failed to parse LLM response: ${error.message}`,
+        HttpStatus.BAD_REQUEST
+      );
+    }
+  }
+
+  // ============================================================================
+  // ENHANCED LLM TEMPLATE METHODS (from enhanced-template.service.ts)
+  // ============================================================================
+
+  /**
+   * ENHANCED: Select appropriate template based on user focus preference
+   * This method provides enhanced template selection with LLM focus support
+   */
+  selectTemplateByFocus(focus: LlmFocus | string): TemplateConfig {
+    const templates = {
+      'general': {
+        name: TemplateNames.ENHANCED_PRIORITY,
+        template: ENHANCED_PRIORITY_TEMPLATE.template,
+        description: 'Comprehensive priority analysis with scoring breakdown'
+      },
+      'sentiment': {
+        name: TemplateNames.SENTIMENT_FOCUSED,
+        template: SENTIMENT_FOCUSED_TEMPLATE.template,
+        description: 'Sentiment-driven priority assessment'
+      },
+      'urgency': {
+        name: TemplateNames.URGENCY_FOCUSED, 
+        template: URGENCY_FOCUSED_TEMPLATE.template,
+        description: 'Time-critical urgency detection'
+      }
+    };
+    
+    return templates[focus as string] || templates['general'];
+  }
+
+  /**
+   * ENHANCED: Generate enhanced prompt with user configuration
+   * This method extends the basic generatePrompt with advanced user preferences
+   */
+  generateEnhancedPrompt(
+    email: EmailMessage,
+    schedule: ProcessingSchedule,
+    templateConfig: TemplateConfig
+  ): string {
+    let prompt = templateConfig.template;
+    
+    // Replace email variables
+    prompt = prompt.replace(/\{\{subject\}\}/g, email.subject || '');
+    prompt = prompt.replace(/\{\{fromAddress\}\}/g, email.from || '');
+    prompt = prompt.replace(/\{\{receivedAt\}\}/g, email.date?.toISOString() || '');
+    prompt = prompt.replace(/\{\{bodyText\}\}/g, email.bodyText || email.bodyHtml || '');
+    
+    // Handle Handlebars-style conditional blocks for user preferences
+    if (schedule.senderPriorities && Object.keys(schedule.senderPriorities).length > 0) {
+      const senderConfig = JSON.stringify(schedule.senderPriorities);
+      prompt = prompt.replace(
+        /\{\{#if senderPriorities\}\}[\s\S]*?\{\{senderPriorities\}\}[\s\S]*?\{\{\/if\}\}/g,
+        `Sender Priority Overrides: ${senderConfig}`
+      );
+    } else {
+      prompt = prompt.replace(
+        /\{\{#if senderPriorities\}\}[\s\S]*?\{\{\/if\}\}/g,
+        ''
+      );
+    }
+    
+    if (schedule.emailTypePriorities && Object.keys(schedule.emailTypePriorities).length > 0) {
+      const typeConfig = JSON.stringify(schedule.emailTypePriorities);
+      prompt = prompt.replace(
+        /\{\{#if emailTypePriorities\}\}[\s\S]*?\{\{emailTypePriorities\}\}[\s\S]*?\{\{\/if\}\}/g,
+        `Email Type Priority Overrides: ${typeConfig}`
+      );
+    } else {
+      prompt = prompt.replace(
+        /\{\{#if emailTypePriorities\}\}[\s\S]*?\{\{\/if\}\}/g,
+        ''
+      );
+    }
+    
+    if (schedule.llmFocus) {
+      prompt = prompt.replace(
+        /\{\{#if llmFocus\}\}[\s\S]*?\{\{llmFocus\}\}[\s\S]*?\{\{\/if\}\}/g,
+        `Analysis Focus: ${schedule.llmFocus} (adjust scoring emphasis accordingly)`
+      );
+    } else {
+      prompt = prompt.replace(
+        /\{\{#if llmFocus\}\}[\s\S]*?\{\{\/if\}\}/g,
+        ''
+      );
+    }
+    
+    // Clean up any remaining template variables
+    prompt = prompt.replace(/\{\{[^}]+\}\}/g, '');
+    
+    return prompt;
+  }
+
+  /**
+   * ENHANCED: Get all available enhanced templates
+   * This method provides access to the new enhanced LLM templates
+   */
+  getAvailableEnhancedTemplates(): TemplateConfig[] {
+    return [
+      this.selectTemplateByFocus('general'),
+      this.selectTemplateByFocus('sentiment'),
+      this.selectTemplateByFocus('urgency'),
+    ];
+  }
+
+  /**
+   * ENHANCED: Get enhanced template by name
+   * This method extends the basic getTemplateByName for enhanced templates
+   */
+  getEnhancedTemplateByName(name: string): TemplateConfig | null {
+    const templates = this.getAvailableEnhancedTemplates();
+    return templates.find(template => template.name === name) || null;
+  }
+
+  /**
+   * ENHANCED: Validate template configuration
+   * This method provides validation for enhanced template configurations
+   */
+  validateEnhancedTemplate(templateConfig: TemplateConfig): boolean {
+    return !!(
+      templateConfig.name &&
+      templateConfig.template &&
+      templateConfig.description
+    );
   }
 }

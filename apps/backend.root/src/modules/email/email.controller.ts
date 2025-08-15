@@ -18,6 +18,8 @@ import {
 import { Transform, Type } from 'class-transformer';
 import { EmailService } from './email.service';
 import { EmailIngestionService } from './email-ingestion.service';
+import { ProcessingSchedule } from '@prisma/client';
+import { ProcessingScheduleService } from '../processing-schedule/processing-schedule.service';
 
 import type {
   IngestEmailsDto as ApiIngestEmailsDto,
@@ -37,10 +39,10 @@ export class IngestEmailsDto implements ApiIngestEmailsDto {
   @IsNumber()
   @Min(1)
   @Max(50)
-  limit: number = 5;
+  limit = 5;
 
   @IsString()
-  folder: string = 'INBOX';
+  folder = 'INBOX';
 
   @IsOptional()
   @IsISO8601()
@@ -62,10 +64,10 @@ export class IngestUserEmailsDto implements ApiIngestUserEmailsDto {
   @IsNumber()
   @Min(1)
   @Max(50)
-  limit: number = 5;
+  limit = 5;
 
   @IsString()
-  folder: string = 'INBOX';
+  folder = 'INBOX';
 
   @IsOptional()
   @IsISO8601()
@@ -89,14 +91,15 @@ export class ProcessBatchDto implements ApiProcessBatchDto {
   @IsNumber()
   @Min(1)
   @Max(20)
-  limit: number = 5;
+  limit = 5;
 }
 
 @Controller('email')
 export class EmailController {
   constructor(
     private readonly emailService: EmailService,
-    private readonly emailIngestionService: EmailIngestionService
+    private readonly emailIngestionService: EmailIngestionService,
+    private readonly processingScheduleService: ProcessingScheduleService
   ) {}
 
   /**
@@ -244,5 +247,63 @@ export class EmailController {
         HttpStatus.INTERNAL_SERVER_ERROR
       );
     }
+  }
+
+  /**
+   * Get schedules for a specific email account
+   * OpenAPI: GET /email/accounts/{accountId}/schedules
+   */
+  @Get('accounts/:accountId/schedules')
+  async getAccountSchedules(
+    @Param('accountId') accountId: string
+  ): Promise<{
+    accountId: string;
+    schedules: ProcessingSchedule[];
+    totalCount: number;
+  }> {
+    try {
+      const schedules = await this.processingScheduleService.getAccountSchedules(accountId);
+      return { accountId, schedules, totalCount: schedules.length };
+    } catch (error) {
+      throw new HttpException(
+        `Failed to get schedules for account ${accountId}: ${error.message}`,
+        HttpStatus.NOT_FOUND
+      );
+    }
+  }
+
+  /**
+   * Get processing statistics for a specific email account
+   * OpenAPI: GET /email/accounts/{accountId}/stats
+   */
+  @Get('accounts/:accountId/stats')
+  async getAccountProcessingStats(
+    @Param('accountId') accountId: string
+  ): Promise<{
+    accountId: string;
+    totalSchedules: number;
+    activeSchedules: number;
+    totalExecutions: number;
+    successfulExecutions: number;
+    failedExecutions: number;
+    lastProcessingDate?: Date;
+  }> {
+    // TODO: Replace placeholders when service method exists
+    const schedules = await this.processingScheduleService.getAccountSchedules(accountId);
+
+    const stats = {
+      accountId,
+      totalSchedules: schedules.length,
+      activeSchedules: schedules.filter((s) => s.isEnabled).length,
+      totalExecutions: schedules.reduce((sum, s) => sum + (s.totalExecutions || 0), 0),
+      successfulExecutions: schedules.reduce((sum, s) => sum + (s.successfulExecutions || 0), 0),
+      failedExecutions: schedules.reduce((sum, s) => sum + (s.failedExecutions || 0), 0),
+      lastProcessingDate: schedules
+        .map((s) => s.lastExecutedAt)
+        .filter((date) => date)
+        .sort((a, b) => b!.getTime() - a!.getTime())[0],
+    };
+
+    return stats;
   }
 }

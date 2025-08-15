@@ -14,6 +14,8 @@ import { APP_ENDPOINTS } from '../configuration';
 const DashboardPage = React.lazy(
   () => import('./pages/dashboard/DashboardPage')
 );
+const SchedulesPage = React.lazy(() => import('./pages/SchedulesPage'));
+const ScheduleEditPage = React.lazy(() => import('./pages/ScheduleEditPage'));
 
 export const AppRouter: React.FC = () => {
   return (
@@ -54,6 +56,39 @@ export const AppRouter: React.FC = () => {
           element={
             <ProtectedRoute>
               <AddAccountPage />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path={APP_ENDPOINTS.schedules}
+          element={
+            <ProtectedRoute>
+              <Suspense fallback={<PageLoader message="Loading schedules..." />}>
+                <SchedulesPage />
+              </Suspense>
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path={APP_ENDPOINTS.editScheduleNew}
+          element={
+            <ProtectedRoute>
+              <Suspense fallback={<PageLoader message="Loading schedule..." />}>
+                <ScheduleEditPage />
+              </Suspense>
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/schedules/:id"
+          element={
+            <ProtectedRoute>
+              <Suspense fallback={<PageLoader message="Loading schedule..." />}>
+                <ScheduleEditPage />
+              </Suspense>
             </ProtectedRoute>
           }
         />
