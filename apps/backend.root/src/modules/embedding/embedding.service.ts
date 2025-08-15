@@ -1,5 +1,4 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
-import { pipeline } from '@xenova/transformers';
 import { EmailCategory } from '@prisma/client';
 import { TemplateNames } from '../../types/template.types';
 import { CATEGORY_DESCRIPTIONS } from './embedding.categories';
@@ -8,6 +7,28 @@ interface CategoryEmbedding {
   category: EmailCategory;
   embeddings: number[][];
   averageEmbedding: number[];
+}
+
+// Singleton class for managing the embedding pipeline (following Hugging Face docs pattern)
+class EmbeddingPipeline {
+  static task = 'feature-extraction';
+  static model = 'Xenova/all-MiniLM-L6-v2';
+  static instance: any = null;
+
+  static async getInstance(progress_callback: any = null) {
+    if (this.instance === null) {
+      const TransformersApi = Function(
+        'return import("@xenova/transformers")'
+      )();
+      const { pipeline } = await TransformersApi;
+
+      this.instance = await pipeline(this.task as any, this.model, {
+        quantized: true,
+        progress_callback,
+      });
+    }
+    return this.instance;
+  }
 }
 
 @Injectable()
@@ -28,19 +49,14 @@ export class EmbeddingService implements OnModuleInit {
     try {
       this.logger.log('🚀 Initializing embedding pipeline...');
 
-      // Initialize the sentence transformer pipeline
-      this.embeddingPipeline = await pipeline(
-        'feature-extraction',
-        'Xenova/all-MiniLM-L6-v2',
-        {
-          quantized: true,
-          progress_callback: (progress: any) => {
-            if (progress.status === 'downloading') {
-              this.logger.log(
-                `📥 Downloading model: ${Math.round(progress.progress || 0)}%`
-              );
-            }
-          },
+      // Initialize the sentence transformer pipeline using singleton pattern
+      this.embeddingPipeline = await EmbeddingPipeline.getInstance(
+        (progress: any) => {
+          if (progress.status === 'downloading') {
+            this.logger.log(
+              `📥 Downloading model: ${Math.round(progress.progress || 0)}%`
+            );
+          }
         }
       );
 

@@ -3,6 +3,7 @@ import { EmailCategory, LlmFocus } from '@prisma/client';
 
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { TemplateValidatorService } from './template-validator.service';
+import { EmbeddingService } from '../embedding/embedding.service';
 import { EmailMessage } from '../../types/email.types';
 import { TemplateValidationResult, TemplateNames } from '../../types/template.types';
 import { TemplateConfig } from '../../types/email-processing.types';
@@ -24,7 +25,8 @@ interface ProcessingSchedule {
 export class TemplateService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly templateValidator: TemplateValidatorService
+    private readonly templateValidator: TemplateValidatorService,
+    private readonly embeddingService: EmbeddingService
   ) {}
 
   /**
@@ -107,35 +109,127 @@ export class TemplateService {
   }
 
   /**
-   * Select best template for an email based on content analysis
+   * Select best template for an email based on embedding-based semantic analysis
    */
   async selectBestTemplate(email: EmailMessage): Promise<any> {
-    // Get all active templates
-    const templates = await this.getActiveTemplates();
+    try {
+      // Check if embedding service is ready
+      if (!this.embeddingService.isReady()) {
+        console.warn('⚠️ EmbeddingService not ready, falling back to basic template selection');
+        return this.selectBestTemplateFallback(email);
+      }
 
+      // Use embedding service for intelligent category classification
+      const classification = await this.embeddingService.classifyEmailSubject(email.subject);
+      
+      // Get the recommended template based on the classified category
+      const recommendedTemplateName = this.embeddingService.getCategoryTemplate(classification.category);
+      
+      // Get all active templates
+      const templates = await this.getActiveTemplates();
+      
+      if (templates.length === 0) {
+        return null;
+      }
+
+      // Find the recommended template in our active templates
+      const recommendedTemplate = templates.find(t => t.name === recommendedTemplateName);
+      
+      if (recommendedTemplate) {
+        console.log(
+          `🎯 Selected template "${recommendedTemplateName}" for category "${classification.category}" (confidence: ${(classification.confidence * 100).toFixed(1)}%)`
+        );
+        return recommendedTemplate;
+      }
+
+      // If recommended template not found, try to find a similar one
+      const fallbackTemplate = this.findSimilarTemplate(templates, recommendedTemplateName, classification.category);
+      
+      if (fallbackTemplate) {
+        console.log(
+          `🔄 Using fallback template "${fallbackTemplate.name}" for category "${classification.category}"`
+        );
+        return fallbackTemplate;
+      }
+
+      // Final fallback to general email analysis
+      const generalTemplate = templates.find(t => t.name === 'general-email-analysis');
+      console.log(`⚠️ Using general template as final fallback`);
+      return generalTemplate || templates[0];
+      
+    } catch (error) {
+      console.error('❌ Embedding-based template selection failed:', error);
+      return this.selectBestTemplateFallback(email);
+    }
+  }
+
+  /**
+   * Fallback template selection using basic keyword matching
+   */
+  private async selectBestTemplateFallback(email: EmailMessage): Promise<any> {
+    const templates = await this.getActiveTemplates();
+    
     if (templates.length === 0) {
       return null;
     }
 
-    // Simple template selection logic based on keywords
-    const emailText = `${email.subject} ${
-      email.bodyText || email.bodyHtml || ''
-    }`.toLowerCase();
+    // Simple keyword-based selection as fallback
+    const emailText = `${email.subject} ${email.bodyText || email.bodyHtml || ''}`.toLowerCase();
+    
+    // Basic template mapping based on keywords
+    const keywordMappings = [
+      { keywords: ['invoice', 'bill', 'payment', 'receipt'], templateName: 'invoice-processor' },
+      { keywords: ['meeting', 'appointment', 'calendar', 'schedule'], templateName: 'meeting-processor' },
+      { keywords: ['marketing', 'promotion', 'sale', 'offer'], templateName: 'marketing-processor' },
+      { keywords: ['newsletter', 'digest', 'update'], templateName: 'news-processor' },
+      { keywords: ['purchase', 'order', 'transaction'], templateName: 'financial-processor' },
+    ];
 
-    // Priority-based template selection
-    const templateScores = templates.map((template) => ({
-      template,
-      score: this.calculateTemplateScore(emailText, template, email),
-    }));
+    for (const mapping of keywordMappings) {
+      if (mapping.keywords.some(keyword => emailText.includes(keyword))) {
+        const template = templates.find(t => t.name === mapping.templateName);
+        if (template) {
+          console.log(`📝 Fallback: Selected template "${mapping.templateName}" based on keywords`);
+          return template;
+        }
+      }
+    }
 
-    // Sort by score and return best match
-    templateScores.sort((a, b) => b.score - a.score);
+    // Final fallback to general template
+    const generalTemplate = templates.find(t => t.name === 'general-email-analysis');
+    return generalTemplate || templates[0];
+  }
 
-    return templateScores[0]?.template || templates[0]; // Return best match or first template as fallback
+  /**
+   * Find a similar template when the exact recommended template is not available
+   */
+  private findSimilarTemplate(templates: any[], recommendedTemplateName: string, category: EmailCategory): any | null {
+    // Template similarity mappings
+    const similarityMappings: Record<string, string[]> = {
+      'invoice-processor': ['financial-processor', 'general-email-analysis'],
+      'meeting-processor': ['general-email-analysis'],
+      'marketing-processor': ['general-email-analysis'],
+      'news-processor': ['general-email-analysis'],
+      'financial-processor': ['invoice-processor', 'general-email-analysis'],
+      'general-email-analysis': ['enhanced-priority', 'sentiment-focused'],
+      'sentiment-focused': ['general-email-analysis', 'enhanced-priority'],
+    };
+
+    const similarTemplates = similarityMappings[recommendedTemplateName] || [];
+    
+    for (const similarTemplateName of similarTemplates) {
+      const template = templates.find(t => t.name === similarTemplateName);
+      if (template) {
+        return template;
+      }
+    }
+
+    return null;
   }
 
   /**
    * Calculate template matching score based on email content
+   * @deprecated This method is replaced by embedding-based selection
    */
   private calculateTemplateScore(
     emailText: string,
@@ -166,6 +260,9 @@ export class TemplateService {
     return score;
   }
 
+  /**
+   * @deprecated This method is replaced by embedding-based selection
+   */
   private scoreBySenderDomain(fromAddress: string, template: any): number {
     const domain = fromAddress.split('@')[1]?.toLowerCase() || '';
     let score = 0;
@@ -218,6 +315,9 @@ export class TemplateService {
     return score;
   }
 
+  /**
+   * @deprecated This method is replaced by embedding-based selection
+   */
   private scoreBySubjectPatterns(subject: string, template: any): number {
     let score = 0;
 
