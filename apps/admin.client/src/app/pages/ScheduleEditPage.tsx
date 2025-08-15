@@ -23,9 +23,10 @@ function utcToLocalDateTimeString(utcIsoString: string): string {
   return `${year}-${month}-${day}T${hours}:${minutes}`;
 }
 
-function toCronFromPreset(preset: 'daily' | 'weekly' | 'monthly', start: Date) {
+function toCronFromPreset(preset: 'hourly' | 'daily' | 'weekly' | 'monthly', start: Date) {
   const m = start.getMinutes();
   const h = start.getHours();
+  if (preset === 'hourly') return `${m} * * * *`;
   if (preset === 'daily') return `${m} ${h} * * *`;
   if (preset === 'weekly') {
     const dow = start.getDay(); // 0-6
@@ -52,7 +53,7 @@ const ScheduleEditPage: React.FC = () => {
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
   const [isRecurring, setIsRecurring] = useState(false);
-  const [recurringPreset, setRecurringPreset] = useState<'daily' | 'weekly' | 'monthly'>('daily');
+  const [recurringPreset, setRecurringPreset] = useState<'hourly' | 'daily' | 'weekly' | 'monthly'>('daily');
   const [timezone, setTimezone] = useState<string>(browserTz);
   const [llmFocus, setLlmFocus] = useState<string>('general');
   const [useDefaultFocus, setUseDefaultFocus] = useState<boolean>(true);
@@ -201,6 +202,7 @@ const ScheduleEditPage: React.FC = () => {
                 value={recurringPreset}
                 onChange={(v) => setRecurringPreset(v as any)}
                 options={[
+                  { label: 'Hourly', value: 'hourly' },
                   { label: 'Daily', value: 'daily' },
                   { label: 'Weekly', value: 'weekly' },
                   { label: 'Monthly', value: 'monthly' },
@@ -208,7 +210,10 @@ const ScheduleEditPage: React.FC = () => {
               />
               <InputField label="Timezone" type="text" name="timezone" value={timezone} onChange={setTimezone} />
               <div className="text-xs text-gray-500 md:col-span-2">
-                will recure every {new Date(startDate || new Date().toISOString()).toLocaleString()} ({recurringPreset})
+                {recurringPreset === 'hourly' 
+                  ? `will run every hour at ${new Date(startDate || new Date().toISOString()).toLocaleTimeString()} (${recurringPreset})`
+                  : `will recure every ${new Date(startDate || new Date().toISOString()).toLocaleString()} (${recurringPreset})`
+                }
               </div>
             </div>
           ) : null}
