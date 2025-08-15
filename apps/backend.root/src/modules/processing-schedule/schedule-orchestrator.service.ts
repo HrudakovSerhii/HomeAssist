@@ -480,19 +480,187 @@ export class ScheduleOrchestratorService {
 
   /**
    * Fetches emails for the given schedule and computed date window.
-   * Delegates to IMAP service with a bounded max per execution.
+   * NEW IMPROVED FLOW:
+   * 1. First check DB for failed/pending emails in date range
+   * 2. If fewer than limit, fetch additional emails from IMAP
+   * 3. Always return exactly 'limit' emails, prioritizing failed ones
    */
   private async fetchEmailsForSchedule(
     schedule: ProcessingSchedule,
     dateRange: { since: Date; before: Date },
     limit: number
   ): Promise<EmailMessage[]> {
-    return this.imapService.fetchEmailsWithDateFilter(
+    const startTime = Date.now();
+    this.logger.log(
+      `🔍 Smart email fetching: looking for ${limit} emails from ${dateRange.since.toISOString()} to ${dateRange.before.toISOString()}`
+    );
+
+    // Step 1: Check DB for failed/pending emails in date range
+    const failedEmails = await this.getFailedEmailsFromDB(
       schedule.emailAccountId,
       dateRange.since,
       dateRange.before,
       limit
     );
+
+    this.logger.log(
+      `📊 Found ${failedEmails.length} failed/pending emails in DB`
+    );
+
+    // Step 2: If we have enough failed emails, return them
+    if (failedEmails.length >= limit) {
+      this.logger.log(
+        `✅ Using ${limit} failed emails from DB (prioritizing retries)`
+      );
+      return failedEmails.slice(0, limit);
+    }
+
+    // Step 3: Fetch additional emails from IMAP to reach the limit
+    const remainingNeeded = limit - failedEmails.length;
+    this.logger.log(
+      `📥 Need ${remainingNeeded} more emails, fetching from IMAP...`
+    );
+
+    // Get messageIds of failed emails to exclude them from IMAP fetch
+    const failedMessageIds = failedEmails.map(email => email.messageId);
+
+    const freshEmails = await this.fetchFreshEmailsFromIMAP(
+      schedule.emailAccountId,
+      dateRange.since,
+      dateRange.before,
+      remainingNeeded,
+      failedMessageIds
+    );
+
+    this.logger.log(
+      `📬 Fetched ${freshEmails.length} fresh emails from IMAP`
+    );
+
+    // Combine failed emails (priority) + fresh emails
+    const combinedEmails = [...failedEmails, ...freshEmails];
+
+    const totalTime = Date.now() - startTime;
+    this.logger.log(
+      `🎯 Smart fetch completed in ${totalTime}ms: ${failedEmails.length} failed + ${freshEmails.length} fresh = ${combinedEmails.length} total emails`
+    );
+
+    return combinedEmails;
+  }
+
+  /**
+   * Retrieves failed/pending emails from database within date range
+   */
+  private async getFailedEmailsFromDB(
+    emailAccountId: string,
+    since: Date,
+    before: Date,
+    limit: number
+  ): Promise<EmailMessage[]> {
+    const processedEmails = await this.prisma.processedEmails.findMany({
+      where: {
+        emailAccountId,
+        receivedAt: {
+          gte: since,
+          lte: before,
+        },
+        processingStatus: {
+          in: ['FAILED', 'PENDING'], // Include both failed and pending
+        },
+      },
+      orderBy: [
+        { processingStatus: 'asc' }, // FAILED first, then PENDING
+        { receivedAt: 'desc' }, // Most recent first
+      ],
+      take: limit,
+    });
+
+    // Convert ProcessedEmail records back to EmailMessage format
+    return processedEmails.map(pe => ({
+      messageId: pe.messageId,
+      subject: pe.subject || '',
+      from: pe.fromAddress || '',
+      to: pe.toAddresses || [],
+      cc: pe.ccAddresses || [],
+      bcc: pe.bccAddresses || [],
+      date: pe.receivedAt,
+      bodyText: pe.bodyText || '',
+      bodyHtml: pe.bodyHtml || '',
+      uid: 0, // Not available from DB
+      seq: 0, // Not available from DB
+      flags: [], // Not available from DB, use empty array
+    }));
+  }
+
+  /**
+   * Fetches fresh emails from IMAP, excluding already processed ones
+   */
+  private async fetchFreshEmailsFromIMAP(
+    emailAccountId: string,
+    since: Date,
+    before: Date,
+    limit: number,
+    excludeMessageIds: string[]
+  ): Promise<EmailMessage[]> {
+    if (limit <= 0) {
+      return [];
+    }
+
+    // Fetch more emails than needed to account for exclusions
+    const fetchLimit = Math.min(limit * 3, 1000); // Fetch up to 3x limit but cap at 1000
+
+    const allEmails = await this.imapService.fetchEmailsWithDateFilter(
+      emailAccountId,
+      since,
+      before,
+      fetchLimit
+    );
+
+    // Filter out already processed emails
+    const freshEmails = allEmails.filter(
+      email => !excludeMessageIds.includes(email.messageId)
+    );
+
+    // Get already processed messageIds to exclude completed emails too
+    const allMessageIds = freshEmails.map(email => email.messageId);
+    const processedMessageIds = await this.getProcessedMessageIds(
+      emailAccountId,
+      allMessageIds
+    );
+
+    // Filter out all processed emails (not just failed ones)
+    const trulyFreshEmails = freshEmails.filter(
+      email => !processedMessageIds.includes(email.messageId)
+    );
+
+    this.logger.log(
+      `📋 IMAP filtering: ${allEmails.length} total → ${freshEmails.length} not failed → ${trulyFreshEmails.length} truly fresh`
+    );
+
+    return trulyFreshEmails.slice(0, limit);
+  }
+
+  /**
+   * Get messageIds that have already been processed (any status)
+   */
+  private async getProcessedMessageIds(
+    emailAccountId: string,
+    messageIds: string[]
+  ): Promise<string[]> {
+    if (messageIds.length === 0) return [];
+
+    const processedEmails = await this.prisma.processedEmails.findMany({
+      where: {
+        emailAccountId,
+        messageId: {
+          in: messageIds,
+        },
+      },
+      select: {
+        messageId: true,
+      },
+    });
+
+    return processedEmails.map(pe => pe.messageId);
   }
 
   /**

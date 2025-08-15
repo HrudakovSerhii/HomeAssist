@@ -55,12 +55,17 @@ export class EmailScheduleProcessorService {
       `🚀 Starting email processing: ${emails.length} emails in ${batches.length} batches (batchSize: ${batchSize}) for schedule: ${schedule.name}`
     );
 
+    // Clear any potentially stale connections before starting
+    await this.imapService.clearStaleConnection(schedule.emailAccountId);
+
     for (let i = 0; i < batches.length; i++) {
       const batch = batches[i];
       const batchStartTime = new Date();
 
       this.logger.log(
-        `📦 Processing batch ${i + 1}/${batches.length} with ${batch.length} emails`
+        `📦 Processing batch ${i + 1}/${batches.length} with ${
+          batch.length
+        } emails`
       );
 
       try {
@@ -78,11 +83,13 @@ export class EmailScheduleProcessorService {
         );
 
         const batchDuration = Date.now() - batchStartTime.getTime();
-        const successful = batchResults.filter(r => r.success).length;
-        const failed = batchResults.filter(r => !r.success).length;
-        
+        const successful = batchResults.filter((r) => r.success).length;
+        const failed = batchResults.filter((r) => !r.success).length;
+
         this.logger.log(
-          `✅ Batch ${i + 1}/${batches.length} completed in ${batchDuration}ms: ${successful} successful, ${failed} failed`
+          `✅ Batch ${i + 1}/${
+            batches.length
+          } completed in ${batchDuration}ms: ${successful} successful, ${failed} failed`
         );
 
         // Update results
@@ -142,9 +149,11 @@ export class EmailScheduleProcessorService {
     for (let emailIndex = 0; emailIndex < emails.length; emailIndex++) {
       const email = emails[emailIndex];
       const emailStartTime = Date.now();
-      
+
       this.logger.log(
-        `📧 Processing email ${emailIndex + 1}/${emails.length}: "${email.subject}" from ${email.from}`
+        `📧 Processing email ${emailIndex + 1}/${emails.length}: "${
+          email.subject
+        }" from ${email.from}`
       );
 
       try {
@@ -153,8 +162,10 @@ export class EmailScheduleProcessorService {
           this.priorityService.applyUserPriorityPreprocessing(email, schedule);
 
         const llmStartTime = Date.now();
-        this.logger.log(`🤖 Starting LLM processing for email: "${email.subject}"`);
-        
+        this.logger.log(
+          `🤖 Starting LLM processing for email: "${email.subject}"`
+        );
+
         // Process with LLM (enhanced with schedule preferences and embedding classification)
         const llmResult =
           await this.processorService.processEmailWithEmbeddingClassification(
@@ -164,11 +175,15 @@ export class EmailScheduleProcessorService {
           );
 
         const llmDuration = Date.now() - llmStartTime;
-        this.logger.log(`🤖 LLM processing completed in ${llmDuration}ms for email: "${email.subject}"`);
+        this.logger.log(
+          `🤖 LLM processing completed in ${llmDuration}ms for email: "${email.subject}"`
+        );
 
         // Apply post-processing priority adjustments
         const finalResult =
           this.priorityService.applyUserPriorityPostprocessing(llmResult);
+
+        this.logger.log(`🤖 Processed Final Result: "${JSON.stringify(finalResult.processedEmail?.subject || 'No subject')}"`);
 
         // Store with execution tracking
         const processedEmail = await this.executionService.storeProcessedEmail(
@@ -178,7 +193,9 @@ export class EmailScheduleProcessorService {
 
         const totalDuration = Date.now() - emailStartTime;
         this.logger.log(
-          `✅ Email ${emailIndex + 1}/${emails.length} processed successfully in ${totalDuration}ms (LLM: ${llmDuration}ms)`
+          `✅ Email ${emailIndex + 1}/${
+            emails.length
+          } processed successfully in ${totalDuration}ms (LLM: ${llmDuration}ms)`
         );
 
         results.push({
@@ -189,9 +206,13 @@ export class EmailScheduleProcessorService {
       } catch (error) {
         const totalDuration = Date.now() - emailStartTime;
         this.logger.error(
-          `❌ Email ${emailIndex + 1}/${emails.length} failed after ${totalDuration}ms: "${email.subject}" - Error: ${error.message}`
+          `❌ Email ${emailIndex + 1}/${
+            emails.length
+          } failed after ${totalDuration}ms: "${email.subject}" - Error: ${
+            error.message
+          }`
         );
-        
+
         results.push({
           success: false,
           error: error.message,
