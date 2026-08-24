@@ -110,16 +110,39 @@ export class ProcessingScheduleService {
   }
 
   /**
-   * Updates a processing schedule. If timing-related fields change, recomputes nextExecutionAt.
+   * Updates a processing schedule. Changes apply immediately: whenever a field
+   * that affects WHEN the schedule runs changes (cron, timezone, dates,
+   * processing type, or re-enabling), nextExecutionAt is recomputed from the
+   * merged (existing + updated) configuration, and the orchestrator's
+   * per-minute poll picks it up on its next tick.
    */
   async updateProcessingSchedule(
     id: string,
     dto: UpdateProcessingScheduleDto
   ): Promise<ProcessingSchedule> {
-    // Recalculate next execution if timing changed
+    const existing = await this.prisma.processingSchedule.findUnique({
+      where: { id },
+    });
+
+    if (!existing) {
+      throw new NotFoundException('Schedule not found');
+    }
+
+    const timingChanged =
+      dto.cronExpression !== undefined ||
+      dto.timezone !== undefined ||
+      dto.specificDates !== undefined ||
+      dto.processingType !== undefined ||
+      dto.isEnabled === true;
+
+    // Merge with the stored schedule — a partial update (e.g. timezone only)
+    // must not lose the existing cron/type when recomputing the next run.
     let nextExecution: Date | null | undefined = undefined;
-    if (dto.cronExpression || dto.timezone || dto.specificDates) {
-      nextExecution = await this.calculateNextExecutionTime(dto);
+    if (timingChanged) {
+      nextExecution = await this.calculateNextExecutionTime({
+        ...existing,
+        ...dto,
+      } as UpdateProcessingScheduleDto);
     }
 
     const schedule = await this.prisma.processingSchedule.update({
@@ -131,7 +154,12 @@ export class ProcessingScheduleService {
       },
     });
 
-    this.logger.log(`Updated processing schedule: ${schedule.name}`);
+    this.logger.log(
+      `Updated processing schedule: ${schedule.name}` +
+        (nextExecution !== undefined
+          ? ` (next run: ${nextExecution?.toISOString() ?? 'none'})`
+          : '')
+    );
     return schedule;
   }
 
