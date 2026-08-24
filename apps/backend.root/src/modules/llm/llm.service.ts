@@ -40,25 +40,26 @@ export class LLMService {
       ...(cleanContext ? [] : (history || [])),
       { role: 'user', content: trimmedPrompt },
     ];
+
+    // 'format' is a top-level Ollama request field (e.g. 'json'), not a model
+    // option — hoist it out of the options object so callers can request
+    // structured output without knowing the Ollama request shape.
+    const { format, ...modelOptions } = options || {};
+    const requestBody = {
+      model,
+      messages,
+      ...(format ? { format } : {}),
+      ...(Object.keys(modelOptions).length ? { options: modelOptions } : {}),
+      stream: false,
+    };
+
     try {
-      const response = await axios.post(url, {
-        model,
-        messages,
-        ...(options ? { options } : {}),
-        stream: false,
-      });
+      const response = await axios.post(url, requestBody);
       return response.data;
     } catch (error) {
       console.log('🚨 Ollama request failed:');
       console.log('URL:', url);
-      console.log(
-        'Request body:',
-        JSON.stringify(
-          { model, messages, ...(options ? { options } : {}), stream: false },
-          null,
-          2
-        )
-      );
+      console.log('Request body:', JSON.stringify(requestBody, null, 2));
       console.log('Error status:', error.response?.status);
       console.log('Error data:', error.response?.data);
       console.log('Error message:', error.message);

@@ -273,17 +273,24 @@ export class EmailProcessorService {
 
       this.logger.log(`⚙️ LLM Settings: ${JSON.stringify(llmSettings)}`);
 
+      // format: 'json' makes Ollama constrain output to valid JSON. Stop
+      // sequences are intentionally omitted — '\n\n' can truncate multi-line
+      // JSON. num_predict is Ollama's token cap (max_tokens is not a valid
+      // Ollama option and was silently ignored).
+      const llmOptions = {
+        format: 'json',
+        temperature: llmSettings.temperature,
+        num_predict: llmSettings.maxTokens,
+        repeat_penalty: llmSettings.repeatPenalty,
+      };
+      const model = this.configService.get<string>('llm.defaultModel');
+
       // Call LLM service with optimized settings
-      const llmResponse = await this.llmService.executeChat(
+      let llmResponse = await this.llmService.executeChat(
         optimizedPrompt.prompt,
-        this.configService.get<string>('llm.defaultModel'),
+        model,
         'local',
-        {
-          temperature: llmSettings.temperature,
-          max_tokens: llmSettings.maxTokens,
-          stop: llmSettings.stopSequences,
-          repeat_penalty: llmSettings.repeatPenalty
-        },
+        llmOptions,
         undefined,
         true
       );
@@ -291,16 +298,40 @@ export class EmailProcessorService {
       this.logger.log(`Response from LLM: "${JSON.stringify(llmResponse)}"`);
 
       // Extract the actual content from Ollama response
-      const responseContent = llmResponse.message?.content || llmResponse.response;
-      
+      let responseContent = llmResponse.message?.content || llmResponse.response;
+
+      // Small local models occasionally return prose or truncated output even
+      // with format=json — retry once with an explicit JSON-only instruction
+      // before falling back to the embedding classification.
+      if (!responseContent || !/\{[\s\S]*}/.test(responseContent)) {
+        this.logger.warn(
+          '⚠️ LLM response contained no JSON object, retrying once with a strict JSON instruction'
+        );
+        llmResponse = await this.llmService.executeChat(
+          `${optimizedPrompt.prompt}\n\nRespond with ONLY the JSON object described above. No explanations.`,
+          model,
+          'local',
+          llmOptions,
+          undefined,
+          true
+        );
+        responseContent = llmResponse.message?.content || llmResponse.response;
+      }
+
       if (!responseContent) {
         throw new Error('No content found in LLM response');
       }
 
       this.logger.log(`LLM Content: "${responseContent}"`);
 
-      // Parse and validate LLM response
-      const extractedData = await this.parseLLMResponse(responseContent);
+      // Parse and validate LLM response. The embedding classification is the
+      // fallback category — it is computed deterministically from the subject
+      // and is far more reliable than defaulting to PERSONAL when the LLM
+      // output is malformed.
+      const extractedData = await this.parseLLMResponse(
+        responseContent,
+        classification.category
+      );
 
       // Save processed email data with COMPLETED status
       processedEmail = await this.createProcessedEmail(
@@ -602,7 +633,10 @@ export class EmailProcessorService {
   /**
    * Parses a raw LLM response into structured data with validation and safe fallbacks.
    */
-  private async parseLLMResponse(response: string): Promise<ParsedLLMResponse> {
+  private async parseLLMResponse(
+    response: string,
+    fallbackCategory: EmailCategory = EmailCategory.PERSONAL
+  ): Promise<ParsedLLMResponse> {
     try {
       // Try to extract JSON from the response
       const jsonMatch = response.match(/\{[\s\S]*}/);
@@ -632,8 +666,7 @@ export class EmailProcessorService {
         // Validate required fields and set defaults
         return {
           category:
-            this.validateCategory(parsedData.category) ||
-            EmailCategory.PERSONAL,
+            this.validateCategory(parsedData.category) || fallbackCategory,
           priority:
             this.validatePriority(parsedData.priority) || Priority.MEDIUM,
           sentiment:
@@ -651,7 +684,7 @@ export class EmailProcessorService {
         'No JSON found in LLM response, using fallback structure'
       );
       return {
-        category: EmailCategory.PERSONAL,
+        category: fallbackCategory,
         priority: Priority.MEDIUM,
         sentiment: Sentiment.NEUTRAL,
         summary: response.substring(0, 200),
@@ -665,7 +698,7 @@ export class EmailProcessorService {
       this.logger.error('LLM response:', response);
       // Return fallback structure
       return {
-        category: EmailCategory.PERSONAL,
+        category: fallbackCategory,
         priority: Priority.MEDIUM,
         sentiment: Sentiment.NEUTRAL,
         summary: 'Failed to parse LLM response',

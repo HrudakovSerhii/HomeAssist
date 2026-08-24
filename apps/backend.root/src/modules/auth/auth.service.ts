@@ -1,6 +1,7 @@
 import { Injectable, Logger, HttpException, HttpStatus } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { EncryptionService } from '../encrypt/encryption.service';
+import { ImapService } from '../imap/imap.service';
 import { randomUUID } from 'crypto';
 
 import type {
@@ -19,7 +20,8 @@ export class AuthService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly encryptionService: EncryptionService
+    private readonly encryptionService: EncryptionService,
+    private readonly imapService: ImapService
   ) {}
 
   /**
@@ -201,6 +203,23 @@ export class AuthService {
         throw new HttpException(
           'Email account already exists',
           HttpStatus.CONFLICT
+        );
+      }
+
+      // Verify the credentials actually work before storing the account —
+      // otherwise a broken account silently ends up in the DB and every
+      // schedule run against it fails (tasks/issues/bugs.md #1).
+      const connectionTest =
+        await this.imapService.testConnectionWithCredentials(
+          addAccountDto.email,
+          addAccountDto.appPassword,
+          addAccountDto.accountType || 'GMAIL'
+        );
+
+      if (!connectionTest.success) {
+        throw new HttpException(
+          `IMAP connection test failed: ${connectionTest.message}`,
+          HttpStatus.BAD_REQUEST
         );
       }
 

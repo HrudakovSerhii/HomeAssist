@@ -19,12 +19,12 @@ export class EmailIngestionService {
     options: {
       limit?: number;
       folder?: string;
-      since?: Date; // TODO: use to to search emails if parameter provided
-      before?: Date; // TODO: use to to search emails if parameter provided
+      since?: Date;
+      before?: Date;
       templateName?: string;
     } = {}
   ): Promise<EmailIngestionResults> {
-    const { limit = 5, folder = 'INBOX', templateName } = options;
+    const { limit = 5, folder = 'INBOX', since, before, templateName } = options;
 
     try {
       // Get user's email accounts
@@ -53,6 +53,8 @@ export class EmailIngestionService {
             this.imapService.fetchAndProcessEmails(account.id, {
               folder,
               limit,
+              since,
+              before,
             }),
             new Promise(
               (_, reject) =>
