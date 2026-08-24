@@ -3,7 +3,6 @@ import { ConfigModule } from '@nestjs/config';
 import { EmailController } from './email.controller';
 import { EmailService } from './email.service';
 import { EmailProcessorService } from './email-processor.service';
-import { EmailGateway } from './email.gateway';
 
 import { EmailIngestionService } from './email-ingestion.service';
 import { EmailProcessingService } from './email-processing.service';
@@ -33,7 +32,6 @@ import { ProcessingScheduleService } from '../processing-schedule/processing-sch
     EmailPriorityService,
     EmailScheduleProcessorService,
     ExecutionTrackingService,
-    EmailGateway,
     ProcessingScheduleService,
   ],
   exports: [
@@ -47,7 +45,6 @@ import { ProcessingScheduleService } from '../processing-schedule/processing-sch
     EmailPriorityService,
     EmailScheduleProcessorService,
     ExecutionTrackingService,
-    EmailGateway,
   ],
 })
 export class EmailModule {}

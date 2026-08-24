@@ -1,0 +1,36 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [v1.1.0, main]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Generate Prisma client
+        run: npx prisma generate
+        working-directory: apps/backend.root
+
+      - name: Build backend
+        run: npx nx build backend.root
+
+      - name: Build frontend
+        run: npx nx build admin.client
+
+      - name: Backend unit tests
+        run: npx nx test backend.root
+
+      - name: Frontend unit tests
+        run: npx nx test admin.client

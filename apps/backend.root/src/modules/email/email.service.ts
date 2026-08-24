@@ -140,21 +140,6 @@ export class EmailService {
   }
 
   /**
-   * @deprecated Get pending processed emails for processing (failed ones that need retry)
-   * Retry logic has been removed. Failed emails should be reprocessed manually if needed.
-   */
-  async getPendingProcessedEmails(limit = 10) {
-    console.warn('getPendingProcessedEmails is deprecated. Retry logic has been removed.');
-    return this.prisma.processedEmails.findMany({
-      where: {
-        processingStatus: ProcessingStatus.FAILED,
-      },
-      orderBy: { updatedAt: 'asc' },
-      take: limit,
-    });
-  }
-
-  /**
    * Delete processed email and all related data
    */
   async deleteProcessedEmail(id: string) {

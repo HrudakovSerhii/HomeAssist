@@ -7,6 +7,17 @@ import { nxCopyAssetsPlugin } from '@nx/vite/plugins/nx-copy-assets.plugin';
 export default defineConfig(() => ({
   root: __dirname,
   cacheDir: '../../node_modules/.vite/admin.client',
+  // Static replacements for src/configuration.ts — process.env is used there
+  // instead of import.meta.env so the module also parses under Jest.
+  define: {
+    'process.env.VITE_API_BASE_URL': JSON.stringify(
+      process.env.VITE_API_BASE_URL || ''
+    ),
+    'process.env.VITE_API_PREFIX': JSON.stringify(
+      process.env.VITE_API_PREFIX || ''
+    ),
+    'process.env.VITE_WS_URL': JSON.stringify(process.env.VITE_WS_URL || ''),
+  },
   server: {
     port: 4200,
     host: 'localhost',
