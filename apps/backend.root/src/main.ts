@@ -44,7 +44,7 @@ async function bootstrap() {
   );
 
   // Set global prefix (after static assets)
-  const port = process.env.PORT || 4000;
+  const port = process.env.BACKEND_PORT || process.env.PORT || 4000;
   const prefix = process.env.API_PREFIX || 'api';
   app.setGlobalPrefix(prefix);
 
@@ -53,4 +53,7 @@ async function bootstrap() {
   console.log(`WebSocket server is running on: ws://localhost:${port}`);
 }
 
-bootstrap().finally();
+bootstrap().catch((error) => {
+  console.error('Failed to start backend:', error);
+  process.exit(1);
+});

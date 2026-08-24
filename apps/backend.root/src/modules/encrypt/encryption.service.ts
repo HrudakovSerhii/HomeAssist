@@ -7,7 +7,15 @@ export class EncryptionService {
   private readonly algorithm = 'aes-256-gcm';
   private readonly keyLength = 32; // 256 bits
 
-  constructor(private readonly configService: ConfigService) {}
+  constructor(private readonly configService: ConfigService) {
+    // Fail fast on startup: without a key, stored IMAP passwords would be
+    // encrypted with a publicly known default and unrecoverable after a key change.
+    if (!this.configService.get<string>('APP_PASSWORD_ENCRYPTION_KEY')) {
+      throw new Error(
+        'APP_PASSWORD_ENCRYPTION_KEY is not set. Add it to your .env file (see .env.example) before starting the backend.'
+      );
+    }
+  }
 
   async encryptPassword(password: string): Promise<string> {
     const key = this.getEncryptionKey();
@@ -50,9 +58,13 @@ export class EncryptionService {
   }
 
   private getEncryptionKey(): Buffer {
-    const keyString =
-      this.configService.get<string>('APP_PASSWORD_ENCRYPTION_KEY') ||
-      'default-key-change-in-production-32chars';
+    const keyString = this.configService.get<string>(
+      'APP_PASSWORD_ENCRYPTION_KEY'
+    );
+
+    if (!keyString) {
+      throw new Error('APP_PASSWORD_ENCRYPTION_KEY is not set');
+    }
 
     return scryptSync(keyString, 'salt', this.keyLength);
   }

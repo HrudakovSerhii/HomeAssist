@@ -31,10 +31,11 @@ describe('HealthController', () => {
 
   it('should return health status', () => {
     const result = controller.getHealth();
-    expect(result).toHaveProperty('status', 'ok');
-    expect(result).toHaveProperty('timestamp');
-    expect(result).toHaveProperty('environment', 'development');
-    expect(result).toHaveProperty('version', '1.0.0');
-    expect(result).toHaveProperty('apiPrefix', 'api');
+    expect(result).toHaveProperty('success', true);
+    expect(result.data).toHaveProperty('status', 'ok');
+    expect(result.data).toHaveProperty('timestamp');
+    expect(result.data).toHaveProperty('environment', 'development');
+    expect(result.data).toHaveProperty('version', '1.0.0');
+    expect(result.data).toHaveProperty('apiPrefix', 'api');
   });
 });

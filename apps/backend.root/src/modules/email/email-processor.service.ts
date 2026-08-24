@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 
 import { LLMService } from '../llm/llm.service';
 import { TemplateService } from '../process-template/template.service';
@@ -32,7 +33,6 @@ import {
   PromptTemplate,
 } from '@prisma/client';
 
-import config from '../../config/configuration';
 
 @Injectable()
 /**
@@ -55,7 +55,8 @@ export class EmailProcessorService {
     private readonly templateService: TemplateService,
     private readonly optimizedTemplateService: OptimizedTemplateService,
     private readonly entityValueParser: EntityValueParserService,
-    private readonly embeddingService: EmbeddingService
+    private readonly embeddingService: EmbeddingService,
+    private readonly configService: ConfigService
   ) {}
 
   /**
@@ -121,7 +122,7 @@ export class EmailProcessorService {
       // Call LLM service
       const llmResponse = await this.llmService.executeChat(
         prompt,
-        config().llm.defaultModel,
+        this.configService.get<string>('llm.defaultModel'),
         'local',
         { temperature: 0.1 }, // Low temperature for consistent structured output
         undefined,
@@ -275,7 +276,7 @@ export class EmailProcessorService {
       // Call LLM service with optimized settings
       const llmResponse = await this.llmService.executeChat(
         optimizedPrompt.prompt,
-        config().llm.defaultModel,
+        this.configService.get<string>('llm.defaultModel'),
         'local',
         {
           temperature: llmSettings.temperature,
