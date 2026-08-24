@@ -1,5 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { TemplateValidatorService } from './template-validator.service';
+import { DynamicEntityManagerService } from './dynamic-entity-manager.service';
 import { 
   EmailCategory, 
   Priority, 
@@ -12,9 +13,25 @@ import { EmailAnalysisTemplate } from '../../types/email.types';
 describe('TemplateValidatorService', () => {
   let service: TemplateValidatorService;
 
+  const mockDynamicEntityManager = {
+    getAllApprovedEntityTypes: jest
+      .fn()
+      .mockResolvedValue(Object.values(EntityType)),
+    processNewEntityType: jest.fn().mockResolvedValue({
+      accepted: false,
+      reason: 'not approved in tests',
+    }),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      providers: [TemplateValidatorService],
+      providers: [
+        TemplateValidatorService,
+        {
+          provide: DynamicEntityManagerService,
+          useValue: mockDynamicEntityManager,
+        },
+      ],
     }).compile();
 
     service = module.get<TemplateValidatorService>(TemplateValidatorService);
@@ -65,7 +82,7 @@ describe('TemplateValidatorService', () => {
       expect(result.errors).toHaveLength(0);
     });
 
-    it('should detect invalid enum values', () => {
+    it('should detect invalid enum values', async () => {
       const invalidTemplate: EmailAnalysisTemplate = {
         name: 'test-template',
         description: 'Test template',
@@ -95,7 +112,7 @@ describe('TemplateValidatorService', () => {
   });
 
   describe('validateLLMResponse', () => {
-    it('should validate a correct LLM response', () => {
+    it('should validate a correct LLM response', async () => {
       const validResponse = {
         category: EmailCategory.WORK,
         priority: Priority.HIGH,
@@ -119,12 +136,12 @@ describe('TemplateValidatorService', () => {
         confidence: 0.9,
       };
 
-      const result = service.validateLLMResponse(validResponse);
+      const result = await service.validateLLMResponse(validResponse);
       expect(result.isValid).toBe(true);
       expect(result.errors).toHaveLength(0);
     });
 
-    it('should detect missing required fields', () => {
+    it('should detect missing required fields', async () => {
       const invalidResponse = {
         // Missing required fields
         entities: [],
@@ -133,7 +150,7 @@ describe('TemplateValidatorService', () => {
         confidence: 0.8,
       };
 
-      const result = service.validateLLMResponse(invalidResponse);
+      const result = await service.validateLLMResponse(invalidResponse);
       expect(result.isValid).toBe(false);
       expect(result.errors).toContain('Missing required field: category');
       expect(result.errors).toContain('Missing required field: priority');
@@ -141,7 +158,7 @@ describe('TemplateValidatorService', () => {
       expect(result.errors).toContain('Missing required field: summary');
     });
 
-    it('should detect invalid enum values in response', () => {
+    it('should detect invalid enum values in response', async () => {
       const invalidResponse = {
         category: 'INVALID_CATEGORY',
         priority: 'INVALID_PRIORITY',
@@ -165,12 +182,16 @@ describe('TemplateValidatorService', () => {
         confidence: 0.8,
       };
 
-      const result = service.validateLLMResponse(invalidResponse);
+      const result = await service.validateLLMResponse(invalidResponse);
       expect(result.isValid).toBe(false);
       expect(result.errors).toContain('Invalid category: INVALID_CATEGORY');
       expect(result.errors).toContain('Invalid priority: INVALID_PRIORITY');
       expect(result.errors).toContain('Invalid sentiment: INVALID_SENTIMENT');
-      expect(result.errors).toContain('Invalid entity type at index 0: INVALID_ENTITY_TYPE');
+      expect(result.errors).toEqual(
+        expect.arrayContaining([
+          expect.stringContaining('Invalid entity type at index 0: INVALID_ENTITY_TYPE'),
+        ])
+      );
       expect(result.errors).toContain('Invalid action type at index 0: INVALID_ACTION_TYPE');
     });
   });
