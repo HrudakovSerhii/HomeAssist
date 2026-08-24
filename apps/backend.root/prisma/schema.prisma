@@ -72,6 +72,12 @@ model ProcessedEmails {
   // Enhanced importance scoring
   importanceScore  Int              @default(50) // 0-100 scale
   priorityReasoning String?         // Explanation for the priority/importance
+
+  // Embedding-based classification, computed deterministically from the
+  // subject before the LLM call. Kept alongside the LLM category so the two
+  // can be compared and the record survives malformed LLM output.
+  embeddingCategory   EmailCategory?
+  embeddingConfidence Float?
   
   createdAt        DateTime         @default(now())
   updatedAt        DateTime         @updatedAt

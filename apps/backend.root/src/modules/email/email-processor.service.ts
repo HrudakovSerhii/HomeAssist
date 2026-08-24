@@ -211,6 +211,11 @@ export class EmailProcessorService {
   ): Promise<EmailProcessingResult> {
     const startTime = Date.now();
     let processedEmail: ProcessedEmailWithRelations | null = null;
+    let classification: {
+      category: EmailCategory;
+      confidence: number;
+      scores: Record<EmailCategory, number>;
+    } | null = null;
 
     try {
       // Check if email has already been successfully processed (skip if COMPLETED)
@@ -243,7 +248,7 @@ export class EmailProcessorService {
       }
 
       // Classify email subject using embeddings
-      const classification = await this.embeddingService.classifyEmailSubject(
+      classification = await this.embeddingService.classifyEmailSubject(
         email.subject
       );
 
@@ -338,7 +343,12 @@ export class EmailProcessorService {
         accountId,
         email,
         ProcessingStatus.COMPLETED,
-        extractedData
+        extractedData,
+        undefined,
+        {
+          category: classification.category,
+          confidence: classification.confidence,
+        }
       );
 
       this.logger.log(`Successfully processed email with optimized template: "${email.subject}"`);
@@ -352,7 +362,7 @@ export class EmailProcessorService {
       };
     } catch (error) {
       this.logger.error('❌ Optimized embedding processing failed:', error);
-      
+
       try {
         // Still create a ProcessedEmail record with FAILED status
         processedEmail = await this.createProcessedEmail(
@@ -360,7 +370,13 @@ export class EmailProcessorService {
           email,
           ProcessingStatus.FAILED,
           null,
-          error.message
+          error.message,
+          classification
+            ? {
+                category: classification.category,
+                confidence: classification.confidence,
+              }
+            : undefined
         );
       } catch (saveError) {
         this.logger.error(
@@ -390,7 +406,8 @@ export class EmailProcessorService {
     email: EmailMessage,
     status: ProcessingStatus,
     extractedData?: ParsedLLMResponse | null,
-    errorMessage?: string
+    errorMessage?: string,
+    embeddingClassification?: { category: EmailCategory; confidence: number }
   ): Promise<ProcessedEmailWithRelations> {
     const baseData = {
       messageId: email.messageId,
@@ -422,8 +439,9 @@ export class EmailProcessorService {
       tagsData = extractedData.tags || [];
       confidenceData = extractedData.confidence || 0.8;
     } else {
-      // Failed processing - use default values
-      categoryData = EmailCategory.PERSONAL;
+      // Failed processing - fall back to the embedding classification when
+      // available, PERSONAL otherwise
+      categoryData = embeddingClassification?.category ?? EmailCategory.PERSONAL;
       priorityData = Priority.MEDIUM;
       sentimentData = Sentiment.NEUTRAL;
       summaryData = errorMessage || 'Processing failed';
@@ -442,6 +460,8 @@ export class EmailProcessorService {
         summary: summaryData,
         tags: tagsData,
         confidence: confidenceData,
+        embeddingCategory: embeddingClassification?.category ?? null,
+        embeddingConfidence: embeddingClassification?.confidence ?? null,
       },
       update: {
         // Update all fields on re-processing
@@ -460,6 +480,8 @@ export class EmailProcessorService {
         summary: summaryData,
         tags: tagsData,
         confidence: confidenceData,
+        embeddingCategory: embeddingClassification?.category ?? null,
+        embeddingConfidence: embeddingClassification?.confidence ?? null,
         updatedAt: new Date(),
       },
       include: {
