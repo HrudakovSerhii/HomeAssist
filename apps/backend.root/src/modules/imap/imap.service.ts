@@ -330,19 +330,34 @@ export class ImapService {
           return processedEmails;
         }
 
-        // Fetch latest emails directly using sequence numbers
-        const startSeq = Math.max(1, totalEmails - limit + 1);
-        const endSeq = totalEmails;
+        // Determine which messages to fetch: with a date filter, search by
+        // SINCE/BEFORE and take the newest matches; otherwise take the latest
+        // `limit` sequence numbers directly.
+        let sequences: number[];
+        if (options.since || options.before) {
+          const found = await client.search({
+            ...(options.since ? { since: options.since } : {}),
+            ...(options.before ? { before: options.before } : {}),
+          });
+          sequences = (found || []).sort((a, b) => b - a).slice(0, limit);
+          this.logger.log(
+            `Date filter matched ${
+              found ? found.length : 0
+            } emails, fetching newest ${sequences.length}`
+          );
+        } else {
+          const startSeq = Math.max(1, totalEmails - limit + 1);
+          sequences = [];
+          for (let seq = totalEmails; seq >= startSeq; seq--) {
+            sequences.push(seq);
+          }
+          this.logger.log(
+            `Fetching emails from sequence ${startSeq}:${totalEmails} (latest ${limit} emails)`
+          );
+        }
 
-        this.logger.log(
-          `Fetching emails from sequence ${startSeq}:${endSeq} (latest ${limit} emails)`
-        );
-
-        for (
-          let seq = endSeq;
-          seq >= startSeq && processedEmails.length < limit;
-          seq--
-        ) {
+        for (const seq of sequences) {
+          if (processedEmails.length >= limit) break;
           try {
             this.logger.log(`Processing email sequence ${seq}`);
 
