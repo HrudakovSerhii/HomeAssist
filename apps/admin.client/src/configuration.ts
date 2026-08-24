@@ -1,8 +1,10 @@
+// These process.env.VITE_* references are statically replaced by Vite at
+// build time (see `define` in vite.config.ts). Using process.env instead of
+// import.meta.env keeps this module parseable by Jest (CommonJS).
 export const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || 'http://localhost:4200';
-export const API_PREFIX = import.meta.env.VITE_API_PREFIX || 'api';
-export const WS_BASE_URL =
-  import.meta.env.VITE_WS_URL || 'http://localhost:4200';
+  process.env.VITE_API_BASE_URL || 'http://localhost:4200';
+export const API_PREFIX = process.env.VITE_API_PREFIX || 'api';
+export const WS_BASE_URL = process.env.VITE_WS_URL || 'http://localhost:4200';
 
 // API Endpoints - aligned with OpenAPI schema
 export const API_ENDPOINTS = {

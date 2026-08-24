@@ -12,7 +12,6 @@ export { LoadingSpinner } from './ui/LoadingSpinner';
 export { AlertMessage } from './ui/AlertMessage';
 export { PageLoader } from './ui/PageLoader';
 export { Dropdown } from './ui/Dropdown';
-export { EmailIngestionProgressView } from './ui/EmailIngestionProgressView';
 
 // Layout Components
 export { PageContainer } from './layout/PageContainer';
